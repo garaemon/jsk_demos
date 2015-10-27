@@ -281,6 +281,8 @@
 
 (defun generate-door-motion
   (&key (draw? nil) (push/pull :push) (keep-grasp? nil) (try-all-ik? nil))
+  (warn "generate door motion with stand location~%")
+  (bench
   ;; reset door joint
   (reset-door-joint)
   (set-robot-initial-pose-for-door) ;; fix-leg-to-coords is called
@@ -363,11 +365,13 @@
      )
     (setq *door-ik-results* ik-results)
     (setq *door-stand-coords* stand-coords)
-    ))
+    )))
 
 (defun generate-door-motion-old
   (&key (draw? nil) (push/pull :push) (keep-grasp? nil) (try-all-ik? nil))
   ;; reset door joint
+  (warn "generate door motion withOUT stand location~%")
+  (bench
   (reset-door-joint)
   (set-robot-initial-pose-for-door) ;; fix-leg-to-coords is called
   (let* ((ik-results nil)
@@ -439,11 +443,13 @@
       )
     (setq *door-ik-results* ik-results)
     )
-  )
+  ))
 
 (defun get-door-motion
-  (&key (draw? nil) (push/pull :push) (keep-grasp? nil) (check-continuous? nil))
-  (generate-door-motion :draw? draw? :push/pull push/pull :keep-grasp? keep-grasp?)
+  (&key (draw? nil) (push/pull :push) (keep-grasp? nil) (check-continuous? nil) (old nil))
+  (if old
+      (generate-door-motion-old :draw? draw? :push/pull push/pull :keep-grasp? keep-grasp?)
+    (generate-door-motion :draw? draw? :push/pull push/pull :keep-grasp? keep-grasp?))
   (when (every #'eval (mapcar #'(lambda (x) (elt x 1)) *door-ik-results*))
     (setq *door-motion* (mapcar #'(lambda (x) (elt x 2)) *door-ik-results*)))
   (when (and check-continuous? *door-motion*)
@@ -453,6 +459,7 @@
         (return-from nil nil)
         ))
     ))
+
 
 ;; (defun get-door-stand-coords ;; relative to door
 ;;   (&key (handle-l/r :left) (push/pull :push))
@@ -597,28 +604,29 @@
     (setq overwrite-arm-side? nil))
   ;; default
   (when (not (equal overwrite-stand-coords? :force))
-    (get-door-motion :push/pull push/pull :keep-grasp? keep-grasp? :draw? draw?))
+    (get-door-motion :push/pull push/pull :keep-grasp? keep-grasp? :draw? draw? :old t))
   ;; change arm
   (when (and overwrite-arm-side? (not (equal overwrite-stand-coords? :force)) (not *door-motion*))
     (setq *door-arm* (get-opposite-arm *door-arm*))
     (ros::ros-warn "change arm side to ~a for door motion. (stand position is ~a.) ~%" *door-arm* *door-stand-coords*)
-    (get-door-motion :push/pull push/pull :keep-grasp? keep-grasp? :draw? draw?)
+    (get-door-motion :push/pull push/pull :keep-grasp? keep-grasp? :draw? draw? :old t)
     )
+  ;; with stand location planning
   ;; revert arm, change stand position
-  ;; (when (and overwrite-stand-coords? (not *door-motion*))
-  ;;   (when (and overwrite-arm-side? (not (equal overwrite-stand-coords? :force)))
-  ;;     (setq *door-arm* (get-opposite-arm *door-arm*)))
-  ;;   (move-robot-with-stand-coords-for-door (get-door-stand-coords :handle-l/r (send *door* :get :handle-l/r) :push/pull push/pull))
-  ;;   (ros::ros-warn "change stand position to ~a for door motion. (arm side is ~a.)~%" *door-stand-coords* *door-arm*)
-  ;;   (get-door-motion :push/pull push/pull :keep-grasp? keep-grasp? :draw? draw?)
-  ;;   )
+  (when (and overwrite-stand-coords? (not *door-motion*))
+    (when (and overwrite-arm-side? (not (equal overwrite-stand-coords? :force)))
+      (setq *door-arm* (get-opposite-arm *door-arm*)))
+    ;;(move-robot-with-stand-coords-for-door (get-door-stand-coords :handle-l/r (send *door* :get :handle-l/r) :push/pull push/pull))
+    (ros::ros-warn "change stand position to ~a for door motion. (arm side is ~a.)~%" *door-stand-coords* *door-arm*)
+    (get-door-motion :push/pull push/pull :keep-grasp? keep-grasp? :draw? draw? :old nil)
+    )
   ;; ;; change arm, change stand position
-  ;; (when (and overwrite-arm-side? overwrite-stand-coords? (not *door-motion*))
-  ;;   (when overwrite-arm-side? (setq *door-arm* (get-opposite-arm *door-arm*)))
-  ;;   (move-robot-with-stand-coords-for-door (get-door-stand-coords :handle-l/r (send *door* :get :handle-l/r) :push/pull push/pull))
-  ;;   (ros::ros-warn "change arm side to ~a and stand position to ~a for door motion.~%" *door-arm* *door-stand-coords*)
-  ;;   (get-door-motion :push/pull push/pull :keep-grasp? keep-grasp? :draw? draw?)
-  ;;   )
+  (when (and overwrite-arm-side? overwrite-stand-coords? (not *door-motion*))
+    (when overwrite-arm-side? (setq *door-arm* (get-opposite-arm *door-arm*)))
+    ;;(move-robot-with-stand-coords-for-door (get-door-stand-coords :handle-l/r (send *door* :get :handle-l/r) :push/pull push/pull))
+    (ros::ros-warn "change arm side to ~a and stand position to ~a for door motion.~%" *door-arm* *door-stand-coords*)
+    (get-door-motion :push/pull push/pull :keep-grasp? keep-grasp? :draw? draw? :old nil)
+    )
   *door-motion*)
 
 (defun send-door-motion

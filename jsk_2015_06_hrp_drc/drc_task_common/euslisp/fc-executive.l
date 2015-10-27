@@ -396,6 +396,8 @@
         )                               ;done
       ))
   (:door-region-command-callback (msg)
+    (send self :door-region-command-callback-for-conservative msg))
+  (:door-region-command-callback-normal (msg)
     (when (send smachine :state? :initial)
       (multiple-value-bind
        (foreground background) (integer-vector-to-double-rect-polygon-stamped msg)
@@ -407,6 +409,14 @@
        (call-empty-service "/door_recognition/snapshot/request")
        (send smachine :go-to :recognizing-door-pose)
        )))
+  (:door-region-command-callback-for-conservative (msg)
+    (when (send smachine :state? :initial)
+      (let ((req (instance std_srvs::EmptyRequest :init)))
+        (ros::service-call "/tilt_laser_listener/clear_cache" req))
+      (let ((req (instance std_srvs::EmptyRequest :init)))
+        (ros::service-call "/conservative_door/laser_snapshot/request" req))
+      (send smachine :go-to :recognizing-door-pose))
+    )
   (:valve-region-command-callback (msg)
     (when (send smachine :state? :initial)
       ;; convert OCS2FCSmall into geometry_msgs/Polygon
@@ -836,6 +846,8 @@ It sends :angle-vector to robot and return 'finished' message to ocs"
                                       (length (send fc-msg :params))))
                 (send self :send-to-ocs fc-msg)
                 (send smachine :go-to :initial))))))))
+  (:door-conservative-recog-callback (msg)
+    (send self :door-recog-callback msg))
   (:door-recog-callback (msg)
     (when (send smachine :state? :recognizing-door-pose)
       (let ((trans (send self :lookup-from-body-transform (send msg :header))))
@@ -1545,6 +1557,8 @@ It sends :angle-vector to robot and return 'finished' message to ocs"
   #'send *app* :drill-wall-recog-callback)
 (ros::subscribe "/footstep_planner/projected_footprint" geometry_msgs::PoseStamped
   #'send *app* :projected-footprint-callback)
+(ros::subscribe "/conservative_door/door_handle_bbox_extractor/output_box" jsk_recognition_msgs::BoundingBoxArray
+  #'send *app* :door-conservative-recog-callback)
 
 (ros::rate 10)
 

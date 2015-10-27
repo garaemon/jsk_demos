@@ -1,56 +1,85 @@
 <launch>
   <arg name="INPUT_CLOUD" default="/tilt_laser_listener/output_cloud" />
+  <group ns="conservative_door">
   <node pkg="jsk_topic_tools" type="snapshot" name="laser_snapshot">
     <remap from="~input" to="$(arg INPUT_CLOUD)" />
   </node>
-  <node pkg="jsk_pcl_ros" type="normal_estimation_omp" name="normal_estimation_omp" output="screen">
+  <node pkg="nodelet" type="nodelet" name="voxel_grid"
+        args="standalone pcl/VoxelGrid">
     <remap from="~input" to="laser_snapshot/output" />
+    <rosparam>
+      leaf_size: 0.01
+      filter_limit_min: -10
+      filter_limit_max: 10
+    </rosparam>
+  </node>
+  <node pkg="jsk_pcl_ros" type="normal_estimation_omp" name="normal_estimation_omp" output="screen">
+    <remap from="~input" to="voxel_grid/output" />
   </node>
   <node pkg="jsk_pcl_ros" type="region_growing_multiple_plane_segmentation" name="region_growing_multiple_plane_segmentation"
         output="screen">
     <remap from="~input" to="normal_estimation_omp/output_with_xyz" />
     <remap from="~input_normal" to="normal_estimation_omp/output_with_xyz" />
     <rosparam>
-      min_area: 1.0
+      min_area: 0.3
       max_area: 2.0
+      max_curvature: 0.1
+      distance_threshold: 0.05
+      angular_threshold: 0.1
+    </rosparam>
+  </node>
+  <node pkg="jsk_pcl_ros" type="polygon_array_foot_angle_likelihood" name="polygon_array_foot_angle_likelihood">
+    <remap from="~input" to="region_growing_multiple_plane_segmentation/output/polygons" />
+    <rosparam>
+      target_frame_id: BODY
+      axis: [1, 0, 0]
     </rosparam>
   </node>
   <node pkg="jsk_pcl_ros" type="polygon_array_angle_likelihood" name="polygon_array_angle_likelihood">
-    <remap from="~input" to="/region_growing_multiple_plane_segmentation/output/polygons" />
+    <remap from="~input" to="region_growing_multiple_plane_segmentation/output/polygons" />
     <rosparam>
       target_frame_id: BODY
       axis: [1, 0, 0]
     </rosparam>
   </node>
   <node pkg="jsk_pcl_ros" type="polygon_array_distance_likelihood" name="polygon_array_distance_likelihood">
-    <remap from="~input" to="/polygon_array_angle_likelihood/output" />
+    <remap from="~input" to="polygon_array_angle_likelihood/output" />
     <rosparam>
       target_frame_id: BODY
     </rosparam>
   </node>
   <node pkg="drc_task_common" type="front_plane_extractor.py" name="front_plane_extractor" output="screen">
-    <remap from="~input_polygon" to="/polygon_array_angle_likelihood/output" />
-    <remap from="~input_coeff" to="/region_growing_multiple_plane_segmentation/output/coefficients" />
+    <remap from="~input_polygon" to="polygon_array_foot_angle_likelihood/output" />
+    <remap from="~input_coeff" to="region_growing_multiple_plane_segmentation/output/coefficients" />
     <rosparam>
       frame_id: ground
     </rosparam>
   </node>
   <node pkg="jsk_pcl_ros" type="multi_plane_extraction" name="multi_plane_extraction">
     <remap from="~input" to="normal_estimation_omp/output_with_xyz" />
-    <remap from="~input_polygons" to="front_plane_extractor/output_polygons" />
-    <remap from="~input_coefficients" to="front_plane_extractor/output_coeff" />
+    <!-- <remap from="~input_polygons" to="front_plane_extractor/output_polygons" /> -->
+    <!-- <remap from="~input_coefficients" to="front_plane_extractor/output_coeff" /> -->
+    <remap from="~input_polygons" to="region_growing_multiple_plane_segmentation/output/polygons" />
+    <remap from="~input_coefficients" to="region_growing_multiple_plane_segmentation/output/coefficients" />
     <rosparam>
+      min_height: 0.03
+      max_height: 0.1
       use_indices: false
     </rosparam>
   </node>
   <node pkg="jsk_pcl_ros" type="euclidean_clustering" name="euclidean_clustering">
     <remap from="~input" to="multi_plane_extraction/output" />
+    <rosparam>
+      tolerance: 0.05
+    </rosparam>
   </node>
   <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer" name="cluster_point_indices_decomposer">
     <remap from="~input" to="multi_plane_extraction/output" />
     <remap from="~target" to="euclidean_clustering/output" />
-    <remap from="~align_planes" to="front_plane_extractor/output_polygons" />
-    <remap from="~align_planes_coefficients" to="front_plane_extractor/output_coeff" />
+    <!-- <remap from="~align_planes" to="front_plane_extractor/output_polygons" /> -->
+    <!-- <remap from="~align_planes_coefficients" to="front_plane_extractor/output_coeff" /> -->
+    <remap from="~align_planes" to="region_growing_multiple_plane_segmentation/output/polygons" />
+    <remap from="~align_planes_coefficients" to="region_growing_multiple_plane_segmentation/output/coefficients" />
     <rosparam>
       align_boxes: true
       use_pca: true
@@ -58,8 +87,12 @@
   </node>
   <node pkg="drc_task_common" type="door_handle_bbox_extractor.py" name="door_handle_bbox_extractor" output="screen">
     <remap from="~input" to="cluster_point_indices_decomposer/boxes" />
+    <rosparam>
+      frame_id: ground
+    </rosparam>
   </node>
   <node pkg="jsk_topic_tools" type="static_transform_pose_stamped"
         name="drc_box_maker_to_handle"
         args="0 0 0 -1.57 -1.57 0 door_handle_bbox_extractor/output door_handle" />
+</group>
 </launch>

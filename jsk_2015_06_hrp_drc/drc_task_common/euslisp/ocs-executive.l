@@ -976,7 +976,8 @@
          (publish-door-motion
           :door-name door-name :door-coords (elt door-params 0)
           :arm (send self :get-arm-side) :overwrite-arm-side? (send self :is-door-arm-overwrite)
-          :stand-coords (make-coords) :overwrite-stand-coords? :force ;; overwrite stand-coords forcibly in door motion
+          :stand-coords (make-coords) :overwrite-stand-coords? t
+          ;;:stand-coords (make-coords) :overwrite-stand-coords? :force ;; overwrite stand-coords forcibly in door motion
           :push/pull door-push/pull
           :door-reach-deg door-reach-deg
           :keep-grasp? door-keep-grasp?
