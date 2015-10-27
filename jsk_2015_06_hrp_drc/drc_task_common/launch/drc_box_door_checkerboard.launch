@@ -18,5 +18,6 @@
   </group>
   <node pkg="jsk_topic_tools" type="static_transform_pose_stamped"
         name="drc_box_maker_to_handle"
-        args="0.2 0.25 -0.05 -1.57 1.57 0 /checkerdetector/objectdetection_pose door_handle" />
+        args="0.165 0.25 -0.10 -1.57 1.57 0 /checkerdetector/objectdetection_pose door_handle" />
+        <!-- args="0.2 0.25 -0.05 -1.57 1.57 0 /checkerdetector/objectdetection_pose door_handle" /> -->
 </launch>
