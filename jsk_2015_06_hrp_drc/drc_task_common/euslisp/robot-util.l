@@ -1,3 +1,5 @@
+(require "package://jsk_footstep_planner/euslisp/footplace_planner_for_manipulation.l")
+
 (ros::roseus-add-msgs "rosgraph_msgs")
 (ros::roseus-add-msgs "jsk_recognition_msgs")
 (ros::roseus-add-msgs "jsk_interactive_marker")
