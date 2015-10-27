@@ -8,15 +8,17 @@
 ;;(load "package://pr2eus_armnavigation/pr2eus-arm-navigation.l")
 ;;(load "package://pr2eus_moveit/euslisp/pr2eus-moveit.l")
 
+
 (if *logging*
     (progn
+      (load "package://jsk_demo_common/euslisp/attention-observation.l")
       (require :pr2-attention-move "package://jsk_demo_common/euslisp/pr2-attention-move.l")
-      (require :pr2-attention-action "package://jsk_demo_common/euslisp/pr2-attention-action.l"))
+      (require :pr2-attention-action "package://jsk_demo_common/euslisp/pr2-attention-action.l")
+      (setq *current-context* :fridge))
     (progn
       (require :pr2-move "package://jsk_demo_common/euslisp/pr2-move.l")
       (require :pr2-action "package://jsk_demo_common/euslisp/pr2-action.l")))
 (ros::roseus-add-msgs "pr2_gripper_sensor_msgs")
-(load "package://jsk_demo_common/euslisp/attention-observation.l")
 
 (ros::roseus "demo_main")
 (setq *use-arm-navigation* nil)
@@ -51,6 +53,12 @@
   (require :detection-interface "package://jsk_perception/euslisp/detection_interface.l");;
   ;;(send *pr2* :move-to (send *ri* :state :worldcoords) :world)
   ;;(objects (list *pr2*))
+  (if (send *ri* :simulation-modep)
+      (progn
+        (load "models/room73b2-scene.l")
+        (room73b2)
+        (send *ri* :objects (send *room73b2* :objects))
+        ))
   )
 
 (defun goto-initial-position (&key (return-to-initial-position t)
