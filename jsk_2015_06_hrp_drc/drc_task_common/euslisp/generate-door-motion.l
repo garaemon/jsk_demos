@@ -15,7 +15,7 @@
          (make-drc-sagami-door) ;; :drc-sagami door is edited as :drc-final door
          ;;(make-drc-final-door)
          )
-        ((or (equal door-name :drc-sagami-mirror) (equal door-name :drc-final-mirror))
+n        ((or (equal door-name :drc-sagami-mirror) (equal door-name :drc-final-mirror))
          (make-drc-sagami-door-mirror) ;; :drc-sagami-mirror door is edited as :drc-final-mirror door
          ;;(make-drc-final-door-mirror)
          )
@@ -235,6 +235,7 @@
                 :rotation-axis (list t t t)
                 :warnp (if draw? t nil)
                 :root-link-virtual-joint-weight (float-vector 0.15 0.15 0.01 0.15 0.5 0.5)
+                :rthre (list (deg2rad 5) (deg2rad 1) (deg2rad 1))
                 :additional-weight-list
                 (list (list (send *robot* :torso :waist-r :child-link) 0.1)
                       (list (send *robot* :torso :waist-y :child-link) 0.1)
@@ -248,7 +249,16 @@
                 :avoid-collision-null-gain 5.0
                 :avoid-collision-joint-gain 0.8
                 :collision-avoidance-link-pair
-                (list (list (elt (send *robot* *door-arm* :links) 2) (send *robot* :link "CHEST_LINK2")))
+                (append (list (list (elt (send *robot* *door-arm* :links) 2) (send *robot* :link "CHEST_LINK2")))
+                        (mapcar #'(lambda (arm-link)
+                                    (list arm-link (send *robot* :link "CHEST_LINK2"))
+                                    )
+                                (send *robot* :link-list (send *robot* :rarm :end-coords :parent)(send *robot* :link "RARM_LINK2")))
+                        (mapcar #'(lambda (arm-link)
+                                    (list arm-link (send *robot* :link "CHEST_LINK1"))
+                                    )
+                                (send *robot* :link-list (send *robot* :rarm :end-coords :parent)(send *robot* :link "RARM_LINK2")))
+                        )
                 ))
     (when (and ret (remove-if  #'(lambda (l) (or (and (eq (car l) (send *robot* :link "CHEST_LINK2")) (eq (cdr l) (send *robot* :link "HEAD_LINK1"))) (and (eq (cdr l) (send *robot* :link "CHEST_LINK2")) (eq (car l) (send *robot* :link "HEAD_LINK1"))))) (send *robot* :self-collision-check)))
       (setq ret nil))

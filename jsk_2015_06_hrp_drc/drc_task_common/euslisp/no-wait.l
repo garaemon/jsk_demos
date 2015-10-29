@@ -20,13 +20,25 @@
 (send *robot* :fix-leg-to-coords (make-coords))
 (send *robot-stand-location2* :fix-leg-to-coords (make-coords))
 (send *robot-stand-location* :fix-leg-to-coords (make-coords))
-(setq *door-arm* :rarm)
-(setq *larm-avoid-pose* #f(40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0))
+(setq *door-arm* :larm)
+(cond ((or (equal *robot-name* "JAXON") (equal *robot-name* "STARO") (equal *robot-name* "JAXON_RED"))
+       (setq *rarm-avoid-pose* #f(0.0 39.9353 -40.0 -6.2 -74.4368 -2.03326 0.828553 -30.5338))
+       (setq *larm-avoid-pose* #f(0.0 40.0 20.0 5.0 -80.0 0.0 0.0 -20.0))
+       (send *robot* :torso :waist-y :min-angle 0)
+       (send *robot* :torso :waist-y :max-angle 0)
+       )
+      (t
+       (setq *rarm-avoid-pose* #f(40.1007 -29.388 4.91744 -71.6494 -22.7883 -2.70865 7.77037 15.0))
+       (setq *larm-avoid-pose* #f(40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0))
+       ))
 (setq *door-grasp-preshape-pose* #f(0.0 70.0 0.0 -10.0 30.0 30.0))
 (setq *door-grasp-pose* #f(0.0 -20.0 10.0 -10.0 120.0 120.0))
 ;; only hrp2 supported
-(setq *ik-grid* (load-ik-grid-from-file (ros::resolve-ros-path "package://jsk_ik_server/data/hrp2-yup-iterate009.l")))
-(attach-handle-to-robot-for-door 90)
+;;(setq *ik-grid* (load-ik-grid-from-file (ros::resolve-ros-path "package://jsk_ik_server/data/hrp2-yup-iterate009.l")))
+;;(setq *ik-grid* (load-ik-grid-from-file (ros::resolve-ros-path "package://jsk_ik_server/data/jaxon-zup-iterate009.l")))
+(setq *ik-grid* (load-ik-grid-from-file (ros::resolve-ros-path "package://jsk_ik_server/data/jaxon-yup-iterate009.l")))
+;;(attach-handle-to-robot-for-door 90)
+(attach-handle-to-robot-for-door 30)
 (objects (list *robot* *door* *robot-stand-location* *robot-stand-location2*))
 
 (defun move-door-model-from-knob-coords (recog-coords)
@@ -44,7 +56,7 @@
 ;; (stand-location-planning-fastest (car (get-door-motion-trajectories)))
 (defun stand-location-planning-fastest (c)
   (let ((cset (instance coordinates-set :init (list c))))
-    (let ((location (send *ik-grid* :lookup-stand-location cset :x-num 0 :y-num 0 :theta-num 0 :debug-view nil)))
+    (let ((location (send *ik-grid* :lookup-stand-location cset :x-num 0 :y-num 0 :theta-num 0)))
       (ros::ros-info "location => ~A" location)
       (send *robot-stand-location* :fix-leg-to-coords (send location :copy-worldcoords))
       location)))
@@ -53,7 +65,6 @@
 (defun stand-location-planning-faster (c)
   (let ((cset (instance coordinates-set :init c)))
     (let ((location (send *ik-grid* :lookup-stand-location cset :x-num 4 :y-num 10 :theta-num 10
-                          :debug-view nil
                           :x-range 100 :y-range 500 :theta-range (deg2rad 40))))
       (ros::ros-info "location => ~A" location)
       (send *robot-stand-location2* :fix-leg-to-coords (send location :copy-worldcoords))
@@ -107,7 +118,11 @@
   ;;    ik-ret))
   ;; only for hrp2
   ;; #f(1.69269 2.3683 -23.34 49.3777 -26.8158 -0.589852 0.0 1.69289 2.38383 -23.6127 50.6856 -27.851 -0.605378 0.0 4.49454 -4.99925 0.0 40.0 41.8706 -58.771 -37.8235 -137.0 18.3318 13.9283 28.2097 60.0 40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0)
-  #f(1.69269 2.3683 -23.34 49.3777 -26.8158 -0.589852 0.0 1.69289 2.38383 -23.6127 50.6856 -27.851 -0.605378 0.0 4.49454 -4.99925 -20.0 20.0 46.6181 -51.9261 -54.2097 -118.825 20.3951 16.7094 -0.161786 60.0 40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0)
+  (cond 
+   ((string= *robot-name* "HRP2JSKNT")
+    #f(1.69269 2.3683 -23.34 49.3777 -26.8158 -0.589852 0.0 1.69289 2.38383 -23.6127 50.6856 -27.851 -0.605378 0.0 4.49454 -4.99925 -20.0 20.0 46.6181 -51.9261 -54.2097 -118.825 20.3951 16.7094 -0.161786 60.0 40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0))
+   (t
+    #f(0.061301 -0.816493 -16.5078 39.4663 -22.9584 0.816493 0.061301 -0.816485 -16.4881 39.461 -22.9729 0.816485 11.3761 12.7156 -17.4158 0.0 30.0 0.0 39.9353 -20.5383 -6.12764 -74.4368 -2.03326 0.828553 -30.5338 -5.43888 83.9117 25.5204 8.79642 -109.803 -24.2043 48.2022 7.08812)))
   )
 
 (setq *stage* :rough-stand-location)
@@ -123,7 +138,6 @@
       (let ((x (elt (send body->target :worldpos) 0))
             (y (elt (send body->target :worldpos) 1))
             (theta (car (car (send body->target :rpy-angle)))))
-        ;; ??
         (send *ri* :emergency-walking-stop)
         (ros::ros-warn "move to ~A" (list (* 0.001 x) (* 0.001 y) (rad2deg theta)))
         (send *ri* :go-pos-no-wait (* 0.001 x) (* 0.001 y) (rad2deg theta))
@@ -225,16 +239,33 @@
       (ros::ros-warn "empty result")
       )))
 
+(defun simple-recog-callback (msg)
+  (if (> (length (send msg :boxes)) 0)
+      (let ((box (elt (send msg :boxes) 0)))
+        (if (send *tf-listener* :wait-for-transform *origin-frame* (send box :header :frame_id) (send box :header :stamp)
+                  0.1)
+            (let* ((coords (send *tf-listener* :lookup-transform *origin-frame* 
+                                 (send box :header :frame_id) (send box :header :stamp)))
+                   (box-local-coords (ros::tf-pose->coords (send box :pose)))
+                   (box-global-coords (send coords :transform box-local-coords)))
+              (setq *door* nil)
+              (generate-door-from-name :drc-box2)
+              (send *irtviewer* :objects (list *robot* *door* *robot-stand-location*))
+              (move-robot-model-from-tf (send box :header :stamp))
+              (move-door-model-from-knob-coords (send box-global-coords :copy-worldcoords))
+              (send *irtviewer* :draw-objects)
+              )))))
 
 (setq *tf-listener* (instance ros::transform-listener :init))
 (setq *origin-frame* "odom")
 (ros::subscribe "/plane_supported_cuboid_estimator/output/result" jsk_recognition_msgs::BoundingBoxArray #'result-callback)
+;;(ros::subscribe "/plane_supported_cuboid_estimator/output/result" jsk_recognition_msgs::BoundingBoxArray #'simple-recog-callback)
 (ros::rate 10)
 
 ;; setup impedance
 ;; (set-default-impedance-param)
 ;; (send *ri* :start-impedance :arms :k-p 200 :d-p 250 :m-p 7.5 :m-r 1 :d-r 15 :k-r 20)
-
+;; (send *ri* :remove-joint-group "head_for_teleop")
 ;; (do-until-key
 ;;  (ros::spin-once)
 ;;  (ros::sleep))

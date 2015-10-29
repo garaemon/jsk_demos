@@ -7,7 +7,10 @@
 (ros::roseus-add-msgs "geometry_msgs")
 (ros::roseus-add-msgs "jsk_recognition_msgs")
 
-(generate-robot "hrp2jsknt" :generate-ri? t)
+(setq *robot-name* (unix::getenv "ROBOT"))
+(load (robot-file (unix::getenv "ROBOT")))
+(init-robot-from-name (unix::getenv "ROBOT"))
+
 (objects (list *robot*))
 ;; (send *ri* :set-joint-angles-of-group "head_for_teleop" 
 ;;       (coerce (mapcar #'deg2rad (coerce (send *robot* :head :angle-vector) cons)) float-vector) 
@@ -22,8 +25,7 @@
                    (box-local-coords (ros::tf-pose->coords (send box :pose)))
                    (box-global-coords (send coords :transform box-local-coords)))
               (send *robot* :head :look-at (send box-global-coords :worldpos))
-              (send *robot* :head :neck-y :joint-angle 0)
-              (send *robot* :head :neck-p :joint-angle 0)
+              (send *robot* :head :neck-p :joint-angle -20 :relative t)
               (send *irtviewer* :draw-objects)
               (x::window-main-one)
               (send *ri* :set-joint-angles-of-group "head_for_teleop" 

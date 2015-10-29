@@ -410,7 +410,8 @@
         :avoid-collision-null-gain 5.0
         :avoid-collision-joint-gain 0.8
         :collision-avoidance-link-pair
-        (list (list (elt (send *robot* :larm :links) 2) (send *robot* :link "CHEST_LINK2")))
+        (list (list (elt (send *robot* :larm :links) 2) 
+                    (send *robot* :link "CHEST_LINK2")))
         )
   (push (send *robot* :angle-vector) *av-list*)
   )
