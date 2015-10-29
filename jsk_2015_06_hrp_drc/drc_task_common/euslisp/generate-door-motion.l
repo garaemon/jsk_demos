@@ -223,6 +223,19 @@ n        ((or (equal door-name :drc-sagami-mirror) (equal door-name :drc-final-m
         :debug-view (if draw? :no-message nil)
         ))
 
+(defun jaxon-collision-links (arm)
+  (append (list (list (elt (send *robot* arm :links) 2) (send *robot* :link "CHEST_LINK2")))
+          (mapcar #'(lambda (arm-link)
+                      (list arm-link (send *robot* :link "CHEST_LINK2"))
+                      )
+                  (send *robot* :link-list (send *robot* arm :end-coords :parent)
+                        (elt (send *robot* arm :links) 2)))
+          (mapcar #'(lambda (arm-link)
+                      (list arm-link (send *robot* :link "CHEST_LINK1"))
+                      )
+                  (send *robot* :link-list (send *robot* arm :end-coords :parent)
+                        (elt (send *robot* arm :links) 2)))))
+
 (defun fullbody-inverse-kinematics-for-door-for-jaxon
   (tc mt ll &key (draw? nil))
   (let (ret)
@@ -249,16 +262,7 @@ n        ((or (equal door-name :drc-sagami-mirror) (equal door-name :drc-final-m
                 :avoid-collision-null-gain 5.0
                 :avoid-collision-joint-gain 0.8
                 :collision-avoidance-link-pair
-                (append (list (list (elt (send *robot* *door-arm* :links) 2) (send *robot* :link "CHEST_LINK2")))
-                        (mapcar #'(lambda (arm-link)
-                                    (list arm-link (send *robot* :link "CHEST_LINK2"))
-                                    )
-                                (send *robot* :link-list (send *robot* :rarm :end-coords :parent)(send *robot* :link "RARM_LINK2")))
-                        (mapcar #'(lambda (arm-link)
-                                    (list arm-link (send *robot* :link "CHEST_LINK1"))
-                                    )
-                                (send *robot* :link-list (send *robot* :rarm :end-coords :parent)(send *robot* :link "RARM_LINK2")))
-                        )
+                (jaxon-collision-links *door-arm*)
                 ))
     (when (and ret (remove-if  #'(lambda (l) (or (and (eq (car l) (send *robot* :link "CHEST_LINK2")) (eq (cdr l) (send *robot* :link "HEAD_LINK1"))) (and (eq (cdr l) (send *robot* :link "CHEST_LINK2")) (eq (car l) (send *robot* :link "HEAD_LINK1"))))) (send *robot* :self-collision-check)))
       (setq ret nil))
@@ -376,7 +380,14 @@ n        ((or (equal door-name :drc-sagami-mirror) (equal door-name :drc-final-m
             :rotation-axis (list t)
             :move-target (list (car mt))
             :link-list (list (car ll))
-            :stop 30
+            :thre '(5 5 5)
+            :stop 50
+            :root-link-virtual-joint-weight #f(0.01 0.01 0 0 0 0.005)
+            :avoid-collision-distance 100
+            :avoid-collision-null-gain 5.0
+            :avoid-collision-joint-gain 0.8
+            :collision-avoidance-link-pair
+            (jaxon-collision-links *door-arm*)
             :debug draw?))
      (setq stand-coords (car tmp-ret))
      (setq ik-results (mapcar #'(lambda (x) (list 0 t x)) (cadr tmp-ret)))
