@@ -108,6 +108,10 @@
                     (z-vec (v* x-vec y-vec)))
                (setq door-worldcoords
                      (make-coords :pos (send door-worldcoords :pos) :rot (transpose (matrix x-vec y-vec z-vec)))))
+             (when (< (v. (send door-worldcoords :rotate-vector (float-vector 1 0 0))
+                          (float-vector 1 0 0)) 0)
+               (ros::ros-warn "rotate door!")
+               (send door-worldcoords :rotate (deg2rad 180) :y))
              (send *door* :move-coords door-worldcoords (send *door* :handle :knob-handle))
              (when use-model-z-pos?
                (let* ((fixed-door-coords (send (send *door* :worldcoords) :copy-worldcoords))
@@ -115,7 +119,9 @@
                  (setq fixed-door-coords
                        (make-coords :pos (float-vector (elt fixed-door-pos 0) (elt fixed-door-pos 1) 0) :rot (send fixed-door-coords :rot)))
                  (send *door* :newcoords fixed-door-coords)
+                 (objects (list *door* *robot*))
                  ))
+             (objects (list *door* *robot*))
              ))
           (t ;; (equal door-coords-system :origin-from-world)
            (send *door* :newcoords door-coords)
@@ -279,6 +285,52 @@
     ret)
   )
 
+(defun door-trans-list (push/pull)
+  (cond
+   ((equal push/pull :push)
+    (list (list (float-vector -100 200 150) 0 0 0)
+          (list (float-vector 0 50 50) 0 0 0)
+          (list (float-vector 0 -25 -50) 0 0 0)
+          (list (float-vector 0 -25 -50) 0 0 -35) ;; start grasp before this
+          (list (float-vector 0 -25 -50) 0 0 -70)
+          (list (float-vector 0 -25 -50) 0 10 -70)
+          (list (float-vector 0 -25 -50) 0 15 -70)
+          (list (float-vector 0 -25 -50) 0 15 -35)
+          (list (float-vector 0 -25 -50) 0 15 0)
+          (list (float-vector 0 75 50) 0 15 0) ;; stop grasp before this
+          (list (float-vector 0 150 50) 0 15 0)
+          (list (float-vector 0 150 150) 0 15 0)
+          (list (float-vector 0 150 150) 0 30 0)
+          (list (float-vector -100 150 150) 0 15 0)
+          )
+    )
+   ((equal push/pull :pull)
+    (list (list (float-vector -100 200 150) 0 0 0)
+          (list (float-vector 0 50 50) 0 0 0)
+          (list (float-vector 0 -25 -50) 0 0 0)
+          (list (float-vector 0 -25 -50) 0 0 -35) ;; start grasp before this
+          (list (float-vector 0 -25 -50) 0 0 -70)
+          (list (float-vector 0 -25 -50) 0 -10 -70)
+          (list (float-vector 0 -25 -50) 0 -20 -70)
+          (list (float-vector 0 -25 -50) 0 -20 -35)
+          (list (float-vector 0 -25 -50) 0 -20 0)
+          (list (float-vector 0 75 50) 0 -20 0) ;; stop grasp before this
+          (list (float-vector 0 150 50) 0 -20 0)
+          (list (float-vector -100 150 50) 0 -20 0)
+          ))))
+
+(defun get-door-handle-coords-from-trans (trans)
+  (let ((trans-handle-pos
+         (float-vector (elt (elt trans 0) 0) (elt (elt trans 0) 1) 
+                       (if (equal (send *door* :get :handle-l/r) :left)
+                           (elt (elt trans 0) 2)
+                         (- (elt (elt trans 0) 2))))))
+    (send (send *door* :joint :door-hinge-joint) :joint-angle (elt trans 2))
+    (send (send *door* :joint :door-knob-joint) :joint-angle (elt trans 3))
+    (send (send
+           (send (send *door* :handle :knob-handle) :copy-worldcoords)
+           :translate trans-handle-pos :local) :rotate (deg2rad (elt trans 1)) :z :local)))
+
 (defun generate-door-motion
   (&key (draw? nil) (push/pull :push) (keep-grasp? nil) (try-all-ik? nil))
   (warn "generate door motion with stand location~%")
@@ -286,61 +338,22 @@
   ;; reset door joint
   (reset-door-joint)
   (set-robot-initial-pose-for-door) ;; fix-leg-to-coords is called
+  (send *robot* :fix-leg-to-coords *door-stand-coords*) ;; this should be called after (set-robot-initial-pose-for-door)
   (let* ((ik-results nil)
          (ik-ret nil)
          (trans-list ;; list of eef-xyz-pos, eef-z-angle, hinge-angle, knob-angle
-          (cond
-           ((equal push/pull :push)
-            (list (list (float-vector -100 200 150) 0 0 0)
-                  (list (float-vector 0 50 50) 0 0 0)
-                  (list (float-vector 0 -25 -50) 0 0 0)
-                  (list (float-vector 0 -25 -50) 0 0 -35) ;; start grasp before this
-                  (list (float-vector 0 -25 -50) 0 0 -70)
-                  (list (float-vector 0 -25 -50) 0 10 -70)
-                  (list (float-vector 0 -25 -50) 0 15 -70)
-                  (list (float-vector 0 -25 -50) 0 15 -35)
-                  (list (float-vector 0 -25 -50) 0 15 0)
-                  (list (float-vector 0 75 50) 0 15 0) ;; stop grasp before this
-                  (list (float-vector 0 150 50) 0 15 0)
-                  (list (float-vector 0 150 150) 0 15 0)
-                  (list (float-vector 0 150 150) 0 30 0)
-                  (list (float-vector -100 150 150) 0 15 0)
-                  )
-            )
-           ((equal push/pull :pull)
-            (list (list (float-vector -100 200 150) 0 0 0)
-                  (list (float-vector 0 50 50) 0 0 0)
-                  (list (float-vector 0 -25 -50) 0 0 0)
-                  (list (float-vector 0 -25 -50) 0 0 -35) ;; start grasp before this
-                  (list (float-vector 0 -25 -50) 0 0 -70)
-                  (list (float-vector 0 -25 -50) 0 -10 -70)
-                  (list (float-vector 0 -25 -50) 0 -20 -70)
-                  (list (float-vector 0 -25 -50) 0 -20 -35)
-                  (list (float-vector 0 -25 -50) 0 -20 0)
-                  (list (float-vector 0 75 50) 0 -20 0) ;; stop grasp before this
-                  (list (float-vector 0 150 50) 0 -20 0)
-                  (list (float-vector -100 150 50) 0 -20 0)
-                  )
-            ))
-          )
+          (door-trans-list push/pull))
          tmp-ret
          tc-list
          stand-coords
          )
     (dotimes (i (length trans-list))
       (let* ((trans (elt trans-list i))
-             (trans-handle-pos
-              (float-vector (elt (elt trans 0) 0) (elt (elt trans 0) 1) (if (equal (send *door* :get :handle-l/r) :left) (elt (elt trans 0) 2) (- (elt (elt trans 0) 2)))))
              tc)
-        (send (send *door* :joint :door-hinge-joint) :joint-angle (elt trans 2))
-        (send (send *door* :joint :door-knob-joint) :joint-angle (elt trans 3))
         (setq tc
-              (list (send (send
-                           (send (send *door* :handle :knob-handle) :copy-worldcoords)
-                           :translate trans-handle-pos :local) :rotate (deg2rad (elt trans 1)) :z :local)
+              (list (get-door-handle-coords-from-trans trans)
                     (send *robot* :rleg :end-coords :copy-worldcoords)
                     (send *robot* :lleg :end-coords :copy-worldcoords)))
-        
         (push-back tc tc-list)
         )
       )
@@ -353,7 +366,8 @@
             :rotation-axis (list t)
             :move-target (list (car mt))
             :link-list (list (car ll))
-            :debug nil))
+            :stop 30
+            :debug draw?))
      (setq stand-coords (car tmp-ret))
      (setq ik-results (mapcar #'(lambda (x) (list 0 t x)) (cadr tmp-ret)))
      ;; (setq ik-ret (fullbody-inverse-kinematics-for-door tc mt ll :draw? draw?))
@@ -377,41 +391,7 @@
   (let* ((ik-results nil)
          (ik-ret nil)
          (trans-list ;; list of eef-xyz-pos, eef-z-angle, hinge-angle, knob-angle
-          (cond
-           ((equal push/pull :push)
-            (list (list (float-vector -100 200 150) 0 0 0)
-                  (list (float-vector 0 50 50) 0 0 0)
-                  (list (float-vector 0 -25 -50) 0 0 0)
-                  (list (float-vector 0 -25 -50) 0 0 -35) ;; start grasp before this
-                  (list (float-vector 0 -25 -50) 0 0 -70)
-                  (list (float-vector 0 -25 -50) 0 10 -70)
-                  (list (float-vector 0 -25 -50) 0 15 -70)
-                  (list (float-vector 0 -25 -50) 0 15 -35)
-                  (list (float-vector 0 -25 -50) 0 15 0)
-                  (list (float-vector 0 75 50) 0 15 0) ;; stop grasp before this
-                  (list (float-vector 0 150 50) 0 15 0)
-                  (list (float-vector 0 150 150) 0 15 0)
-                  (list (float-vector 0 150 150) 0 30 0)
-                  (list (float-vector -100 150 150) 0 15 0)
-                  )
-            )
-           ((equal push/pull :pull)
-            (list (list (float-vector -100 200 150) 0 0 0)
-                  (list (float-vector 0 50 50) 0 0 0)
-                  (list (float-vector 0 -25 -50) 0 0 0)
-                  (list (float-vector 0 -25 -50) 0 0 -35) ;; start grasp before this
-                  (list (float-vector 0 -25 -50) 0 0 -70)
-                  (list (float-vector 0 -25 -50) 0 -10 -70)
-                  (list (float-vector 0 -25 -50) 0 -20 -70)
-                  (list (float-vector 0 -25 -50) 0 -20 -35)
-                  (list (float-vector 0 -25 -50) 0 -20 0)
-                  (list (float-vector 0 75 50) 0 -20 0) ;; stop grasp before this
-                  (list (float-vector 0 150 50) 0 -20 0)
-                  (list (float-vector -100 150 50) 0 -20 0)
-                  )
-            ))
-          )
-         )
+          (door-trans-list push/pull)))
     (dotimes (i (length trans-list))
       (send *robot* :reset-manip-pose)
       (case *door-arm*
@@ -419,15 +399,9 @@
         (:rarm (send *robot* :larm :angle-vector *larm-avoid-pose*)))
       (send *robot* :fix-leg-to-coords *door-stand-coords*) ;; this should be called after (set-robot-initial-pose-for-door)
       (let* ((trans (elt trans-list i))
-             (trans-handle-pos
-              (float-vector (elt (elt trans 0) 0) (elt (elt trans 0) 1) (if (equal (send *door* :get :handle-l/r) :left) (elt (elt trans 0) 2) (- (elt (elt trans 0) 2)))))
              tc)
-        (send (send *door* :joint :door-hinge-joint) :joint-angle (elt trans 2))
-        (send (send *door* :joint :door-knob-joint) :joint-angle (elt trans 3))
         (setq tc
-              (list (send (send
-                           (send (send *door* :handle :knob-handle) :copy-worldcoords)
-                           :translate trans-handle-pos :local) :rotate (deg2rad (elt trans 1)) :z :local)
+              (list (get-door-handle-coords-from-trans trans)
                     (send *robot* :rleg :end-coords :copy-worldcoords)
                     (send *robot* :lleg :end-coords :copy-worldcoords)))
         (with-move-target-link-list

@@ -21,6 +21,7 @@ def callback(boxes_msg):
                                            quaternion_matrix(((pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w))))
         box_pose = concatenate_matrices(origin_matrix, pose_matrix)
         box_pos = translation_from_matrix(box_pose)
+        print box_pos[2]
         if 0.8 < box_pos[2] and box_pos[2] < 1.0:
             print box_pos
             if min_y_dist > abs(box_pos[1]):

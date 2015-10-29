@@ -18,7 +18,7 @@
         (ri-test? nil)
         )
   (cond ((not ri-test?)
-         (get-door-motion-full
+         (bench (get-door-motion-full
           :door-name door-name
           :door-width door-width :handle-l/r handle-l/r
           :door-knob-size door-knob-size :door-knob-pos door-knob-pos
@@ -28,7 +28,7 @@
           :robot-name robot-name :draw-environment? t
           :overwrite-stand-coords? overwrite-stand-coords? :overwrite-arm-side? overwrite-arm-side?
           :door-reach-deg door-reach-deg :keep-grasp? keep-grasp?
-          )
+          ))
          (play-motion-on-eus-viewer
           *door-motion*
           :interpolation? t :collision-check? t
@@ -111,7 +111,8 @@
   (test-door-motion-hrp2jsknt-pattern5 :ri-test? nil)
   (test-door-motion-hrp2jsknt-pattern6 :ri-test? nil)
   (test-door-motion-hrp2jsknt-pattern7 :ri-test? nil)
-  (test-door-motion-hrp2jsknt-pattern8 :ri-test? nil)
+  (test-door-motion-hrp2jsknt-pattern8 :ri-test? nil) ;right, pull
+  
   (setq *robot* nil)
   (test-door-motion-hrp2jsknts-pattern1 :ri-test? nil)
   (test-door-motion-hrp2jsknts-pattern2 :ri-test? nil)
@@ -187,6 +188,12 @@
   (&key (ri-test? nil))
   (print "test for handle right, rarm, pull, overwrite stand-coords")
   (test-door-motion :ri-test? ri-test? :robot-name "HRP2JSKNT" :door-name :drc-sagami-mirror :arm :rarm :push/pull :pull :overwrite-stand-coords? :force)
+  )
+
+(defun test-door-motion-hrp2jsknt-pattern9
+  (&key (ri-test? nil))
+  (print "test for handle right, rarm, pull, overwrite stand-coords")
+  (test-door-motion :ri-test? ri-test? :robot-name "HRP2JSKNT" :door-name :drc-box2 :arm :rarm :push/pull :pull :overwrite-stand-coords? t)
   )
 
 (defun test-door-motion-hrp2jsknts-with-ri
@@ -416,3 +423,5 @@
 (warning-message 2 "(test-door-motion-hrp2jsknt-with-ri)~%")
 (warning-message 2 "(test-door-motion-hrp2jsknts-with-ri)~%")
 (warning-message 2 "(test-door-motion-jaxon-with-ri)~%")
+
+

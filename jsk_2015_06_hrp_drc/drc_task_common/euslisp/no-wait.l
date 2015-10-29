@@ -1,0 +1,254 @@
+#!/usr/bin/env roseus
+
+;; Only for door task now!!!
+(ros::roseus "no_wait_exec")
+
+(ros::roseus-add-srvs "std_srvs")
+(ros::roseus-add-msgs "geometry_msgs")
+(ros::roseus-add-msgs "jsk_recognition_msgs")
+
+(load "package://drc_task_common/euslisp/generate-door-motion.l")
+(load "package://jsk_ik_server/euslisp/ik-evaluation.l")
+(setq *robot-name* (unix::getenv "ROBOT"))
+(load (robot-file (unix::getenv "ROBOT")))
+(init-robot-from-name (unix::getenv "ROBOT"))
+(setq *robot-stand-location* (make-robot-model-from-name (unix::getenv "ROBOT")))
+(setq *robot-stand-location2* (make-robot-model-from-name (unix::getenv "ROBOT")))
+(mapc #'(lambda (x) (send x :set-color (float-vector 0 1 0) 0.7)) (send *robot-stand-location* :bodies))
+(mapc #'(lambda (x) (send x :set-color (float-vector 1 0 0) 0.7)) (send *robot-stand-location2* :bodies))
+(generate-door-from-name :drc-box2)
+(send *robot* :fix-leg-to-coords (make-coords))
+(send *robot-stand-location2* :fix-leg-to-coords (make-coords))
+(send *robot-stand-location* :fix-leg-to-coords (make-coords))
+(setq *door-arm* :rarm)
+(setq *larm-avoid-pose* #f(40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0))
+(setq *door-grasp-preshape-pose* #f(0.0 70.0 0.0 -10.0 30.0 30.0))
+(setq *door-grasp-pose* #f(0.0 -20.0 10.0 -10.0 120.0 120.0))
+;; only hrp2 supported
+(setq *ik-grid* (load-ik-grid-from-file (ros::resolve-ros-path "package://jsk_ik_server/data/hrp2-yup-iterate009.l")))
+(attach-handle-to-robot-for-door 90)
+(objects (list *robot* *door* *robot-stand-location* *robot-stand-location2*))
+
+(defun move-door-model-from-knob-coords (recog-coords)
+  (if (> (v. (send recog-coords :rotate-vector (float-vector 1 0 0))
+             (float-vector 1 0 0)) 0)
+      (send recog-coords :rotate (deg2rad 180) :z))
+  (let* ((door->knob (send (send *door* :copy-worldcoords) :transformation
+                           (send (send *door* :handle :knob-handle) :copy-worldcoords)))
+         (knob->door (send door->knob :inverse-transformation))
+         (recog-offset (make-coords :rpy (float-vector pi 0 pi/2))))
+    (let ((door-coords (send (send recog-coords :transform recog-offset) :transform knob->door)))
+      (send *door* :newcoords door-coords)
+      (send *door* :worldpos))))
+
+;; (stand-location-planning-fastest (car (get-door-motion-trajectories)))
+(defun stand-location-planning-fastest (c)
+  (let ((cset (instance coordinates-set :init (list c))))
+    (let ((location (send *ik-grid* :lookup-stand-location cset :x-num 0 :y-num 0 :theta-num 0 :debug-view nil)))
+      (ros::ros-info "location => ~A" location)
+      (send *robot-stand-location* :fix-leg-to-coords (send location :copy-worldcoords))
+      location)))
+
+;; (stand-location-planning-faster (get-door-motion-trajectories))
+(defun stand-location-planning-faster (c)
+  (let ((cset (instance coordinates-set :init c)))
+    (let ((location (send *ik-grid* :lookup-stand-location cset :x-num 4 :y-num 10 :theta-num 10
+                          :debug-view nil
+                          :x-range 100 :y-range 500 :theta-range (deg2rad 40))))
+      (ros::ros-info "location => ~A" location)
+      (send *robot-stand-location2* :fix-leg-to-coords (send location :copy-worldcoords))
+      location)))
+
+
+(defun move-robot-model-from-tf (stamp)
+  (if (send *tf-listener* :wait-for-transform *origin-frame* "BODY" stamp
+            1.0)
+      (let* ((c (send *tf-listener* :lookup-transform *origin-frame* "BODY" stamp)))
+        (let* ((robot->body (send (send *robot* :copy-worldcoords)
+                                  :transformation (send *robot* :body_lk :copy-worldcoords)))
+               (body->robot (send robot->body :inverse-transformation)))
+        (send *robot* :newcoords (send c :transform body->robot))))
+    (ros::ros-warn "failed to lookup tf for robot!")
+    ))
+
+(defun get-door-motion-trajectories ()
+  (let ((trans-list (door-trans-list :pull)))
+    (prog1 (mapcar #'(lambda (trans)
+                       (get-door-handle-coords-from-trans trans))
+                   trans-list)
+      (send *door* :angle-vector #f(0 0)))))
+
+(defun get-door-motion* (&rest args)
+  (setq *door-motion* nil)
+  (apply #'get-door-motion args)
+  (if *door-motion*
+      (ros::ros-warn "IK success!")
+    (ros::ros-warn "IK failed!"))
+  *door-motion*)
+
+(defun is-walking-p ()
+  "return t when robot is walking"
+  (not (= (length (send *ri* :get-remaining-foot-step-sequence)) 0)))
+
+(defun door-prepare-motion ()
+  ;; (reset-door-joint)
+  ;; (set-robot-initial-pose-for-door)
+  ;; (send *robot* :fix-leg-to-coords *door-stand-coords*)
+  ;; (let ((tc (car (get-door-motion-trajectories)))
+  ;;       (ik-ret nil))
+  ;;   (with-move-target-link-list
+  ;;    (mt ll *robot* (list *door-arm* :rleg :lleg))
+  ;;    (setf (elt mt 0) (send *robot* :get (read-from-string (format nil "~a-door-coords" *door-arm*))))
+  ;;    (setq ik-ret (fullbody-inverse-kinematics-for-door 
+  ;;                  (list tc (send *robot* :rleg :end-coords :copy-worldcoords)
+  ;;                        (send *robot* :lleg :end-coords :copy-worldcoords)) mt ll :draw? nil))
+  ;;    (unless ik-ret
+  ;;      (ros::ros-warn "Failed to solve ik for prepare"))
+  ;;    ik-ret))
+  ;; only for hrp2
+  ;; #f(1.69269 2.3683 -23.34 49.3777 -26.8158 -0.589852 0.0 1.69289 2.38383 -23.6127 50.6856 -27.851 -0.605378 0.0 4.49454 -4.99925 0.0 40.0 41.8706 -58.771 -37.8235 -137.0 18.3318 13.9283 28.2097 60.0 40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0)
+  #f(1.69269 2.3683 -23.34 49.3777 -26.8158 -0.589852 0.0 1.69289 2.38383 -23.6127 50.6856 -27.851 -0.605378 0.0 4.49454 -4.99925 -20.0 20.0 46.6181 -51.9261 -54.2097 -118.825 20.3951 16.7094 -0.161786 60.0 40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0)
+  )
+
+(setq *stage* :rough-stand-location)
+;; *stage* :start
+;; :start -> :rough-stand-location
+;; :rough-stand-location -> :ik-trajectory
+;; :ik-trajectory -> :with-stand-location
+
+(defun go-pos-to (origin->target)               ;coords := from *origin-frame*
+  (let* ((origin->body (send *tf-listener* :lookup-transform *origin-frame* "BODY" (ros::time 0)))
+         (body->origin (send origin->body :inverse-transformation)))
+    (let ((body->target (send body->origin :transform origin->target)))
+      (let ((x (elt (send body->target :worldpos) 0))
+            (y (elt (send body->target :worldpos) 1))
+            (theta (car (car (send body->target :rpy-angle)))))
+        ;; ??
+        (send *ri* :emergency-walking-stop)
+        (ros::ros-warn "move to ~A" (list (* 0.001 x) (* 0.001 y) (rad2deg theta)))
+        (send *ri* :go-pos-no-wait (* 0.001 x) (* 0.001 y) (rad2deg theta))
+        ))))
+
+(defun result-callback (msg)
+  (if (> (length (send msg :boxes)) 0)
+      (let ((box (elt (send msg :boxes) 0)))
+        (if (send *tf-listener* :wait-for-transform *origin-frame* (send box :header :frame_id) (send box :header :stamp)
+                  0.1)
+            (let* ((coords (send *tf-listener* :lookup-transform *origin-frame* 
+                                 (send box :header :frame_id) (send box :header :stamp)))
+                   (box-local-coords (ros::tf-pose->coords (send box :pose)))
+                   (box-global-coords (send coords :transform box-local-coords)))
+              (setq *door* nil)
+              (generate-door-from-name :drc-box2)
+              (send *irtviewer* :objects (list *robot* *door* *robot-stand-location*))
+              (move-robot-model-from-tf (send box :header :stamp))
+              (move-door-model-from-knob-coords (send box-global-coords :copy-worldcoords))
+              (send *irtviewer* :draw-objects)
+              (ros::ros-info "stage: ~A" *stage*)
+              (cond
+               ((eq *stage* :rough-stand-location)
+                (setq *door-stand-coords* (stand-location-planning-fastest (car (get-door-motion-trajectories))))
+                (let ((prepare-motion (door-prepare-motion)))
+                  (go-pos-to *door-stand-coords*)
+                  (ros::sleep 1)        ;歩いてる途中に動いてる感
+                  (send *ri* :angle-vector prepare-motion 3000))
+                )
+               ((eq *stage* :ik-trajectory)
+                (setq *door-stand-coords* (stand-location-planning-faster (get-door-motion-trajectories)))
+                (get-door-motion* :push/pull :pull :keep-grasp? nil :draw? nil :old t)
+                (go-pos-to *door-stand-coords*)
+                )
+               ((eq *stage* :with-stand-location-first)
+                ;; Force to replan stand location
+                (ros::ros-info "force to replan stand coords")
+                (get-door-motion* :push/pull :pull :keep-grasp? nil :draw? nil :old nil)
+                (setq *door-stand-coords* (stand-location-planning-faster (get-door-motion-trajectories)))
+                (ros::ros-info "update stand coords by manip+footplace planning")
+                (go-pos-to *door-stand-coords*)
+                )
+               ((eq *stage* :with-stand-location)
+                (if (and 
+                     (let ((robot->door (send (send *door-stand-coords* :transformation box-global-coords) :worldpos)))
+                       (ros::ros-info "robot->door: ~A" (norm (float-vector (elt robot->door 0)
+                                                                            (elt robot->door 1))))
+                       (not (< (norm (float-vector (elt robot->door 0)
+                                                   (elt robot->door 1)))
+                               1.2)))
+                     (is-walking-p))
+                    (progn
+                      (ros::ros-info "still walking, check stand location with the latest perception result")
+                      (unless (get-door-motion* :push/pull :pull :keep-grasp? nil :draw? nil :old t) ;cannot solve ik
+                        (ros::ros-info "cannot solve ik with current stand coords")
+                        (get-door-motion* :push/pull :pull :keep-grasp? nil :draw? nil :old nil)
+                        (setq *door-stand-coords* (stand-location-planning-faster (get-door-motion-trajectories)))
+                        (ros::ros-info "update stand coords by manip+footplace planning")
+                        (go-pos-to *door-stand-coords*)))
+                  (progn
+                    (ros::ros-info "finish walking")
+                    (setq *stage* :done)
+                    (setq *door-stand-coords* nil)
+                    ;; (when (or (equal *robot-name* "JAXON") (equal *robot-name* "STARO") (equal *robot-name* "JAXON_RED"))
+                    ;;   (hand-start-grasp :arm *door-arm* :real? real? :type :door-grasp-preshape))
+                    (send-angle-vector-sequence-with-time (subseq *door-motion* 1 3) :time 1500 :wait? t)
+                    (hand-start-grasp :real? t :type :door-grasp)
+                    (send-angle-vector-sequence-with-time (subseq *door-motion* 3 9) :time 1500 :wait? t)
+                    (hand-start-grasp :real? t :type :door-grasp-preshape)
+                    (send-angle-vector-sequence-with-time (subseq *door-motion* 9) :time 1500 :wait? t))
+                  (cond ((or (equal *robot-name* "JAXON") (equal *robot-name* "STARO") (equal *robot-name* "JAXON_RED"))
+                         (let* ((door-arm-angle (copy-seq (send *robot* *door-arm* :angle-vector))))
+                           (send *robot* :reset-manip-pose)
+                           (send *robot* *door-arm* :angle-vector door-arm-angle)))
+                        (t ;; (or (equal *robot-name* "HRP2JSKNT") (equal *robot-name* "HRP2JSKNTS"))
+                         (send *robot* :reset-manip-pose)
+                         ))
+                  (model2real :time 4000)
+                  )
+                ))
+              ;; For next loop
+              (cond
+               ((eq *stage* :rough-stand-location)
+                (setq *stage* :ik-trajectory))
+               ((eq *stage* :ik-trajectory)
+                (setq *stage* :with-stand-location)
+                )
+               ((eq *stage* :with-stand-location-first)
+                (setq *stage* :with-stand-location)
+                )
+               ((eq *stage* :with-stand-location)
+                ;; do nothing
+                )
+               )
+              )
+          (ros::ros-warn "failed to lookup tf!")
+          ))
+    (progn
+      (ros::ros-warn "empty result")
+      )))
+
+
+(setq *tf-listener* (instance ros::transform-listener :init))
+(setq *origin-frame* "odom")
+(ros::subscribe "/plane_supported_cuboid_estimator/output/result" jsk_recognition_msgs::BoundingBoxArray #'result-callback)
+(ros::rate 10)
+
+;; setup impedance
+;; (set-default-impedance-param)
+;; (send *ri* :start-impedance :arms :k-p 200 :d-p 250 :m-p 7.5 :m-r 1 :d-r 15 :k-r 20)
+
+;; (do-until-key
+;;  (ros::spin-once)
+;;  (ros::sleep))
+;; (load "package://drc_task_common/euslisp/no-wait.l")
+#|
+(play-motion-on-eus-viewer
+          *door-motion*
+          :interpolation? t :collision-check? t
+          :collision-check-robot-link-list (append (send *robot* :larm :links)
+                                                   (send *robot* :rarm :links)
+                                                   (list (send *robot* :body_lk)
+                                                         (send *robot* :chest_link0_lk)
+                                                         (send *robot* :chest_link1_lk)
+                                                         (send *robot* :head_link0_lk)
+                                                         (send *robot* :head_link1_lk)))
+          :collision-check-obj-link (send *door* :link :root-link))
+|#
