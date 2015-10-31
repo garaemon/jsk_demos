@@ -12,8 +12,8 @@
 ;;(setq *robot-name* (unix::getenv "ROBOT"))
 (setq *robot-name* "JAXON")
 (load (robot-file *robot-name*))
-;;(init-robot-from-name *robot-name*)
-(setq *robot* (instance jaxon-robot :init))
+(init-robot-from-name *robot-name*)
+;;(setq *robot* (instance jaxon-robot :init))
 (setq *robot-stand-location* (make-robot-model-from-name *robot-name*))
 (setq *robot-stand-location2* (make-robot-model-from-name *robot-name*))
 (mapc #'(lambda (x) (send x :set-color (float-vector 0 1 0) 0.7)) (send *robot-stand-location* :bodies))
@@ -61,7 +61,8 @@
   (let ((cset (instance coordinates-set :init (list c))))
     (let ((location (send *ik-grid* :lookup-stand-location cset :x-num 0 :y-num 0 :theta-num 0)))
       (ros::ros-info "location => ~A" location)
-      (send *robot-stand-location* :fix-leg-to-coords (send location :copy-worldcoords))
+      (if (boundp '*robot-stand-location*)
+          (send *robot-stand-location* :fix-leg-to-coords (send location :copy-worldcoords)))
       location)))
 
 ;; (stand-location-planning-faster (get-door-motion-trajectories))
@@ -70,7 +71,8 @@
     (let ((location (send *ik-grid* :lookup-stand-location cset :x-num 4 :y-num 10 :theta-num 10
                           :x-range 100 :y-range 500 :theta-range (deg2rad 40))))
       (ros::ros-info "location => ~A" location)
-      (send *robot-stand-location2* :fix-leg-to-coords (send location :copy-worldcoords))
+      (if (boundp '*robot-stand-location2*)
+          (send *robot-stand-location2* :fix-leg-to-coords (send location :copy-worldcoords)))
       location)))
 
 
@@ -125,7 +127,9 @@
    ((string= *robot-name* "HRP2JSKNT")
     #f(1.69269 2.3683 -23.34 49.3777 -26.8158 -0.589852 0.0 1.69289 2.38383 -23.6127 50.6856 -27.851 -0.605378 0.0 4.49454 -4.99925 -20.0 20.0 46.6181 -51.9261 -54.2097 -118.825 20.3951 16.7094 -0.161786 60.0 40.1007 29.388 -4.91744 -71.6494 22.7883 2.70865 7.77037 15.0))
    (t
-    #f(0.061301 -0.816493 -16.5078 39.4663 -22.9584 0.816493 0.061301 -0.816485 -16.4881 39.461 -22.9729 0.816485 11.3761 12.7156 -17.4158 0.0 30.0 0.0 39.9353 -20.5383 -6.12764 -74.4368 -2.03326 0.828553 -30.5338 -5.43888 83.9117 25.5204 8.79642 -109.803 -24.2043 48.2022 7.08812)))
+    ;;#f(1.70758 -1.41912 -19.3478 40.2669 -23.3499 0.707649 1.70807 -1.40798 -18.287 39.1147 -23.2585 0.696503 4.40321 2.51965 -3.32787 30.2131 40.0 0.0 39.9353 -40.0 -6.2 -74.4368 -2.03326 0.828553 -30.5338 -17.2847 72.8694 55.7462 40.8541 -101.338 -10.2739 6.88093 4.65499)
+    #f(1.70758 -1.41912 -19.3478 40.2669 -23.3499 0.707649 1.70807 -1.40798 -18.287 39.1147 -23.2585 0.696503 4.40321 2.51965 -3.32787 30.2131 40.0 0.0 39.9353 -40.0 -6.2 -74.4368 -2.03326 0.828553 -30.5338 17.1313 111.515 49.2562 76.8578 -125.343 -8.66158 6.60031 -17.9341)
+    ))
   )
 
 (setq *stage* :rough-stand-location)
@@ -135,13 +139,13 @@
 ;; :ik-trajectory -> :with-stand-location
 
 (defun go-pos-to (origin->target)               ;coords := from *origin-frame*
+  (send *ri* :emergency-walking-stop)
   (let* ((origin->body (send *tf-listener* :lookup-transform *origin-frame* "BODY" (ros::time 0)))
          (body->origin (send origin->body :inverse-transformation)))
     (let ((body->target (send body->origin :transform origin->target)))
       (let ((x (elt (send body->target :worldpos) 0))
             (y (elt (send body->target :worldpos) 1))
             (theta (car (car (send body->target :rpy-angle)))))
-        (send *ri* :emergency-walking-stop)
         (ros::ros-warn "move to ~A" (list (* 0.001 x) (* 0.001 y) (rad2deg theta)))
         (send *ri* :go-pos-no-wait (* 0.001 x) (* 0.001 y) (rad2deg theta))
         ))))
@@ -226,7 +230,8 @@
                ((eq *stage* :rough-stand-location)
                 (setq *stage* :ik-trajectory))
                ((eq *stage* :ik-trajectory)
-                (setq *stage* :with-stand-location)
+                ;;(setq *stage* :with-stand-location)
+                (setq *stage* :done)
                 )
                ((eq *stage* :with-stand-location-first)
                 (setq *stage* :with-stand-location)
@@ -268,6 +273,7 @@
 ;; setup impedance
 ;; (set-default-impedance-param)
 ;; (send *ri* :start-impedance :arms :k-p 200 :d-p 250 :m-p 7.5 :m-r 1 :d-r 15 :k-r 20)
+;; (send *ri* :start-impedance :arms :k-p 300 :d-p 800 :m-p 10 :m-r 2 :d-r 80 :k-r 40)
 ;; (send *ri* :remove-joint-group "head_for_teleop")
 ;; (do-until-key
 ;;  (ros::spin-once)
