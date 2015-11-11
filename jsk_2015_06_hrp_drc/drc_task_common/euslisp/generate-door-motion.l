@@ -374,21 +374,33 @@ n        ((or (equal door-name :drc-sagami-mirror) (equal door-name :drc-final-m
     (with-move-target-link-list
      (mt ll *robot* (list *door-arm* :rleg :lleg))
      (setf (elt mt 0) (send *robot* :get (read-from-string (format nil "~a-door-coords" *door-arm*))))
-     (setq tmp-ret
-           (fullbody-inverse-kinematics-with-standcoords
-            *robot* (mapcar #'(lambda (x) (list (car x))) tc-list)
-            :rotation-axis (list t)
-            :move-target (list (car mt))
-            :link-list (list (car ll))
-            :thre '(5 5 5)
-            :stop 50
-            :root-link-virtual-joint-weight #f(0.01 0.01 0 0 0 0.005)
-            :avoid-collision-distance 100
-            :avoid-collision-null-gain 5.0
-            :avoid-collision-joint-gain 0.8
-            :collision-avoidance-link-pair
-            (jaxon-collision-links *door-arm*)
-            :debug draw?))
+     (cond ((or (equal *robot-name* "JAXON") (equal *robot-name* "STARO") (equal *robot-name* "JAXON_RED"))
+            (setq tmp-ret
+                  (fullbody-inverse-kinematics-with-standcoords
+                   *robot* (mapcar #'(lambda (x) (list (car x))) tc-list)
+                   :rotation-axis (list t)
+                   :move-target (list (car mt))
+                   :link-list (list (car ll))
+                   :thre '(5 5 5)
+                   :stop 50
+                   :root-link-virtual-joint-weight #f(0.01 0.01 0 0 0 0.005)
+                   :avoid-collision-distance 100
+                   :avoid-collision-null-gain 5.0
+                   :avoid-collision-joint-gain 0.8
+                   :collision-avoidance-link-pair
+                   (jaxon-collision-links *door-arm*)
+                   :debug draw?)))
+           (t
+            (setq tmp-ret
+                  (fullbody-inverse-kinematics-with-standcoords
+                   *robot* (mapcar #'(lambda (x) (list (car x))) tc-list)
+                   :rotation-axis (list t)
+                   :move-target (list (car mt))
+                   :link-list (list (car ll))
+                   :thre '(5 5 5)
+                   :stop 50
+                   :root-link-virtual-joint-weight #f(0.01 0.01 0 0 0 0.005)
+                   :debug draw?))))
      (setq stand-coords (car tmp-ret))
      (setq ik-results (mapcar #'(lambda (x) (list 0 t x)) (cadr tmp-ret)))
      ;; (setq ik-ret (fullbody-inverse-kinematics-for-door tc mt ll :draw? draw?))
