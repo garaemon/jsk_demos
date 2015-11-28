@@ -215,7 +215,8 @@ n        ((or (equal door-name :drc-sagami-mirror) (equal door-name :drc-final-m
         :warnp (if draw? t nil)
         :additional-weight-list
         (list (list (send *robot* :rleg :toe-p :child-link) 0)
-              (list (send *robot* :lleg :toe-p :child-link) 0))
+              (list (send *robot* :lleg :toe-p :child-link) 0)
+              (list (send *robot* :torso :waist-p :child-link) 0.1))
         :max (float-vector  500  500  0  20  20  10)
         :min (float-vector  -500  -500  -200  -20  -20  -10)
         :stop 40
