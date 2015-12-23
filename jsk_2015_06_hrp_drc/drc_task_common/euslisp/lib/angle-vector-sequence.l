@@ -1,3 +1,5 @@
+(load "package://drc_task_common/euslisp/lib/periodic-rate.l")
+
 (defclass angle-vector-sequence
   :super propertied-object
   :slots (angle-vectors))
@@ -8,7 +10,7 @@
   (:add (av)
     (setq angle-vectors (append angle-vectors (list av))))
   (:angle-vectors () angle-vectors)
-  (:filter-look-at-hand (robot-model arm)
+  (:filter-look-at-hand (robot arm)
     (dotimes (i (length angle-vectors))
       (send robot :angle-vector (elt angle-vectors i))
       (send robot :head :look-at (send robot arm :end-coords :worldpos))
@@ -51,7 +53,17 @@
                  1.0)
                 ((or (string= (send j :name) "RARM_JOINT6")
                      (string= (send j :name) "LARM_JOINT6"))
-                 1.0)
+                 2.0)
                 ))))
+  (:animate-angle-vector 
+   (robot-model &optional (r 1.0))
+   (let ((pr (instance periodic-rate :init r)))
+     (dolist (av angle-vectors)
+       (send robot-model :angle-vector av)
+       (send *irtviewer* :draw-objects)
+       (x::window-main-one)
+       (send pr :sleep))
+     )
+   )
   )
 

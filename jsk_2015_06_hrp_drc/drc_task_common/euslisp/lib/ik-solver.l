@@ -1,6 +1,7 @@
 (load "package://drc_task_common/euslisp/lib/trajectory.l")
 (load "package://drc_task_common/euslisp/lib/collision-link-parameter.l")
 (load "package://drc_task_common/euslisp/lib/angle-vector-sequence.l")
+(load "package://jsk_footstep_planner/euslisp/footplace_planner_for_manipulation.l")
 
 (defun robot-footpoint (r)
   (apply #'midpoint 0.5
@@ -40,7 +41,8 @@
     (setq col-parameter collision-parameter)
     ;;(setq trajectory traj)
     self)
-  (:link-list ()
+  (:ik-type () ik-type)
+  (:link-list (&key (ik-type (send self :ik-type)))
     (cond ((eq ik-type :arm)
            (send robot :link-list
                  (send move-target :parent)
@@ -51,21 +53,24 @@
           ((eq ik-type :fullbody) ;legs will be appended inside of :fullbody-inverse-kinematics
            (send robot :link-list
                  (send move-target :parent)))
+          ((eq ik-type :fullbody-with-standcoords) ;legs will be appended inside of :fullbody-inverse-kinematics
+           (send robot :link-list (send move-target :parent)))
           (t
            (error "unknown ik-type: ~A" ik-type)))
     )
   (:solve-normal-ik (&key via-coords
                           collision-num
                           stop
-                          debug-view)
+                          debug-view
+                          (ik-type (send self :ik-type)))
     (when debug-view                    ;change link-list color
       (mapcar #'(lambda (c)
                   (send c :set-color (float-vector 0 1 0) nil))
-              (flatten (send-all (send self :link-list) :bodies))))
+              (flatten (send-all (send self :link-list :ik-type ik-type) :bodies))))
     (let ((avs (instance angle-vector-sequence :init)))
       (dolist (c via-coords)
         (let ((av (send robot :inverse-kinematics c
-                        :link-list (send self :link-list)
+                        :link-list (send self :link-list :ik-type ik-type)
                         :move-target move-target
                         :stop stop
                         :avoid-collision-distance 100
@@ -73,12 +78,13 @@
                         :avoid-collision-joint-gain 0.8
                         :collision-avoidance-link-pair
                         (send col-parameter :collision-avoidance-link-pair
-                              (send self :link-list)
+                              (send self :link-list :ik-type ik-type)
                               collision-num)
                         :additional-weight-list
                         (list (list (send robot :torso :waist-p :child-link) 0.1)
-                            (list (send robot :torso :waist-y :child-link) 0.3)
-                            (list (send robot :torso :waist-r :child-link) 0.0))
+                              (list (send robot :torso :waist-y :child-link) 0.3)
+                              (list (send robot :torso :waist-r :child-link) 0.0))
+                        :root-link-virtual-joint-weight (float-vector 0.1 0.1 0 0 0 0.1)
                         :debug-view (if debug-view :no-message nil))))
           (if av (send avs :add av)
             (return-from :solve-normal-ik nil))))
@@ -107,6 +113,13 @@
                       :target-centroid-pos (robot-footpoint robot)
                       :translation-axis (list t t t)
                       :rotation-axis (list t t t)
+                      :avoid-collision-distance 100
+                      :avoid-collision-null-gain 5.0
+                      :avoid-collision-joint-gain 0.8
+                      :collision-avoidance-link-pair
+                      (send col-parameter :collision-avoidance-link-pair
+                            (send self :link-list)
+                            collision-num)
                       :additional-weight-list
                       (list (list (send robot :torso :waist-p :child-link) 0.1)
                             (list (send robot :torso :waist-y :child-link) 0.3)
@@ -123,32 +136,82 @@
              (return-from :solve-fullbody-ik nil)
            )
            )))))
+  (:solve-fullbody-with-standcoords-ik (&key via-coords
+                                             collision-num
+                                             stop
+                                             debug-view)
+    (let ((leg-target-coords (list (send robot :lleg :end-coords :copy-worldcoords)
+                                   (send robot :rleg :end-coords :copy-worldcoords)))
+          (ret (instance angle-vector-sequence :init)))
+      (let ((res (fullbody-inverse-kinematics-with-standcoords 
+                  robot 
+                  via-coords
+                  :move-centroid t
+                  :move-target (list move-target)
+                  ;; :translation-axis (list t t t)
+                  ;; :rotation-axis (list t t t)
+                  :avoid-collision-distance 100
+                  :avoid-collision-null-gain 5.0
+                  :avoid-collision-joint-gain 0.8
+                  :collision-avoidance-link-pair
+                  (send col-parameter :collision-avoidance-link-pair
+                        (send self :link-list)
+                        collision-num)
+                  :additional-weight-list
+                  (list (list (send robot :torso :waist-p :child-link) 0.1)
+                        (list (send robot :torso :waist-y :child-link) 0.3)
+                        (list (send robot :torso :waist-r :child-link) 0.0))
+                  :stop stop
+                  :centroid-thre 15
+                  :warnp nil
+                  :debug (if debug-view :no-message nil))))
+        ;; res := (list standpos angle-vector-list)
+        (if (null (cadr res))
+            ;; even though fullbody-inverse-kinematics-with-standcoords fails, 
+            ;; it is worth to test :use-torso ik
+            (progn
+              (ros::ros-warn "try :use-torso because :fullbody-with-standcoords failed")
+              (send self :solve-normal-ik :via-coords via-coords :collision-num collision-num
+                    :stop stop :debug-view debug-view :ik-type :use-torso))
+          res))))
+        ;;   )
+        ;; (if res
+        ;;     (print res)
+        ;;     ;;(send ret :add res)
+        ;;   (return-from :solve-fullbody-with-standcoords-ik nil)
   (:solve (&key (trajectory-resolution 0)
                 (collision-num 0)
                 (stop 50)
                 (debug-view nil))
     (unwind-protect
         ;; move robot model with keeping stand coords
-        (if prepare-angle-vector
-            (let ((mid (send robot :foot-midcoords)))
-              (send robot :angle-vector prepare-angle-vector)
-              (send robot :fix-leg-to-coords mid)))
-        (let ((via-coords (send trajectory :via-coords trajectory-resolution)))
-          (cond ((or (eq ik-type :arm)
-                     (eq ik-type :use-torso))
-                 (send self :solve-normal-ik :via-coords via-coords
-                       :collision-num collision-num
-                       :stop stop
-                       :debug-view debug-view))
-                ((eq ik-type :fullbody)
-                 (send self :solve-fullbody-ik
-                       :via-coords via-coords
-                       :stop stop
-                       :collision-num collision-num
-                       :debug-view debug-view))
-                (t
-                 (error "not supported"))
-                ))
+        (progn
+          (if prepare-angle-vector
+              (let ((mid (send robot :foot-midcoords)))
+                (send robot :angle-vector prepare-angle-vector)
+                (send robot :fix-leg-to-coords mid)))
+          (let ((via-coords (send trajectory :via-coords trajectory-resolution)))
+            (cond ((or (eq ik-type :arm)
+                       (eq ik-type :use-torso))
+                   (send self :solve-normal-ik :via-coords via-coords
+                         :collision-num collision-num
+                         :stop stop
+                         :debug-view debug-view))
+                  ((eq ik-type :fullbody)
+                   (send self :solve-fullbody-ik
+                         :via-coords via-coords
+                         :stop stop
+                         :collision-num collision-num
+                         :debug-view debug-view))
+                  ((eq ik-type :fullbody-with-standcoords)
+                   (send self :solve-fullbody-with-standcoords-ik
+                         :via-coords via-coords
+                         :stop stop
+                         :collision-num collision-num
+                         :debug-view debug-view))
+                  (t
+                   (error "not supported"))
+                  )))
       (when debug-view
         (send-all (send robot :bodies) :set-color nil nil))
       )
