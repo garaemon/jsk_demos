@@ -20,15 +20,17 @@
 
 (defclass ik-solver
   :super propertied-object
-  :slots (robot trajectory ik-type move-target col-parameter))
+  :slots (robot trajectory ik-type move-target col-parameter prepare-angle-vector))
 
 (defmethod ik-solver
   (:init (r aarm &key
             ((:move-target amove-target) nil)
             ((:ik-type aik-type) :arm)
             ((:trajectory traj))
+            ((:prepare-angle-vector pav))
             (collision-parameter))
     (setq robot r)
+    (setq prepare-angle-vector pav)
     (setq arm aarm)
     (if (null amove-target)
         (setq move-target (send r aarm :end-coords))
@@ -126,6 +128,11 @@
                 (stop 50)
                 (debug-view nil))
     (unwind-protect
+        ;; move robot model with keeping stand coords
+        (if prepare-angle-vector
+            (let ((mid (send robot :foot-midcoords)))
+              (send robot :angle-vector prepare-angle-vector)
+              (send robot :fix-leg-to-coords mid)))
         (let ((via-coords (send trajectory :via-coords trajectory-resolution)))
           (cond ((or (eq ik-type :arm)
                      (eq ik-type :use-torso))
