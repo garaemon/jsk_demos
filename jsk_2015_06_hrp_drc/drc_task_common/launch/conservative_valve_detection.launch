@@ -211,10 +211,17 @@
     <node pkg="jsk_pcl_ros" type="icp_registration" name="icp_registration" output="screen">
       <remap from="~input" to="downsample_target_cloud/output" />
       <remap from="~input_reference" to="downsample_reference_cloud/output" />
-      <remap from="~input_offset" to="torus_finder/output/pose" />
+      <remap from="~input_offset" to="valve_rejector/output/pose" />
       <rosparam>
         use_offset_pose: true
         use_flipped_initial_pose: false
+        max_iteration: 10000
+        correspondence_distance: 0.1
+        transform_epsilon: 0.0000001
+        euclidean_fittness_epsilon: 0.0001
+        rotation_epsilon: 0.0002
+        ransac_iterations: 10000
+        ransac_outlier_threshold: 0.4
       </rosparam>
     </node>
     <!-- for saving model -->
@@ -225,13 +232,7 @@
   </group>
   <node pkg="jsk_rviz_plugins" type="rosconsole_overlay_text.py" name="rosconsole_overlay_text">
     <rosparam>
-      nodes: [/valve_detection/odom_laser, /valve_detection/camera_laser, /valve_detection/normal_estimation, /valve_detection/normal_direction_filter, 
-      /valve_detection/normal_direction_filter_points, /valve_detection/normal_direction_filter_points_camera, /valve_detection/region_growing_multiple_plane_segmentation,
-      /valve_detection/region_growing_result_decomposer, /valve_detection/plane_concatenator, /valve_detection/plane_concatenator_transformed,
-      /valve_detection/cluster_point_indices_decomposer, /valve_detection/hsv_decomposer, /valve_detection/polygon_array_color_histogram,
-      /valve_detection/polygon_array_color_likelihood, /valve_detection/extract_top_polygon_likelihood, /valve_detection/polygon_array_color_histogram_debug_view,
-      /valve_detection/multi_plane_extraction, /valve_detection/euclidean_clustering, /valve_detection/euclidean_clustering_decomposer,
-      /valve_detection/torus_finder, /valve_detection/valve_rejector, /valve_detection/torus_points, /valve_detection/selected_polygon_color_histogram]
+      nodes_regexp: ^/valve_detection
     </rosparam>
   </node>
   <include file="$(find drc_task_common)/launch/conservative_valve_viewer.launch" />

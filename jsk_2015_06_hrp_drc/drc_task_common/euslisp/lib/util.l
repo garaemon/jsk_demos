@@ -12,3 +12,8 @@
       (require "package://hrpsys_ros_bridge_tutorials/euslisp/hrp2jsknt-interface.l")
     (require "package://hrpsys_ros_bridge_tutorials/euslisp/jaxon_red-interface.l")
     ))
+(defun string-join (prefix strs)
+  (reduce #'(lambda (a v)
+              (concatenate string a prefix v))
+          strs)
+  )

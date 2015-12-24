@@ -7,6 +7,7 @@ from jsk_recognition_msgs.msg import ModelCoefficientsArray, Torus, TorusArray
 from jsk_topic_tools import ConnectionBasedTransport
 from tf.transformations import *
 from math import acos, degrees
+from geometry_msgs.msg import PoseStamped
 
 import dynamic_reconfigure.server
 from drc_task_common.cfg import ValveRejectorConfig
@@ -16,6 +17,7 @@ class ValveRejector(ConnectionBasedTransport):
         super(ValveRejector, self).__init__()
         dynamic_reconfigure.server.Server(
             ValveRejectorConfig, self.config_callback)
+        self.pub_pose = self.advertise('~output/pose', PoseStamped, queue_size=1)
         self.pub_torus = self.advertise('~output', Torus, queue_size=1)
         self.pub_torus_array = self.advertise('~output_array', TorusArray, queue_size=1)
     def subscribe(self):
@@ -56,6 +58,10 @@ class ValveRejector(ConnectionBasedTransport):
             arr.header = torus_msg.header
             arr.toruses = [torus_msg]
             self.pub_torus_array.publish(arr)
+            pose_stamped = PoseStamped()
+            pose_stamped.header = torus_msg.header
+            pose_stamped.pose = torus_msg.pose
+            self.pub_pose.publish(pose_stamped)
             
 
 if __name__ == "__main__":

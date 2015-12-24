@@ -55,13 +55,18 @@
                                   :translate (float-vector -250 0 0))))
                           (mapcar #'(lambda (c)
                                       (make-cascoords :coords (send (send c :copy-worldcoords)
-                                                                    :translate (float-vector 0 0 0))))
+                                                                    :translate (float-vector -30 0 0))))
                                   coords-list)
                           (list
                            (make-cascoords 
                             :coords
                             (send (send (car (last coords-list)) :copy-worldcoords)
-                                  :translate (float-vector -250 0 0))))
+                                  :translate (float-vector -250 0 0)))
+                           (make-cascoords 
+                            :coords
+                            (send (send (car (last coords-list)) :copy-worldcoords)
+                                  :translate (float-vector -350 0 -100)))
+                           )
                           )
                   :parent-object valve-model)))))
 
@@ -80,6 +85,17 @@
 (defun valve-model ()
   (make-ring 200 20 :segments 16))
 
+(defun test-run-valve-recognition ()
+  (setq *perception-succeeded* nil)
+  (ros::spin-once)
+  (setq *perception-succeeded* nil)
+  (while (ros::ok)
+    (ros::spin-once)
+    (ros::sleep)
+    (if *perception-succeeded*
+        (return-from test-run-valve-recognition nil))
+    ))
+
 (defun test-valve-recognition (robot-type)
   (ros::roseus "test_valve_recognition")
   (setq *tf-listener* (instance ros::transform-listener :init))
@@ -92,35 +108,41 @@
   (setq *recog-result* (instance arrow-object :init))
   (objects (list *robot* *valve* *recog-result* *traj*))
   (ros::advertise "trajectory_marker" visualization_msgs::Marker)
-  (ros::subscribe "/valve_detection/torus_finder/output" jsk_recognition_msgs::Torus #'test-valve-recognition-callback)
+  (ros::subscribe "/valve_detection/icp_registration/output_pose" 
+                  geometry_msgs::PoseStamped
+                  #'test-valve-recognition-callback)
   ;; run recognition until perception succeeded
-  (setq *perception-succeeded* nil)
-  (ros::spin-once)
-  (setq *perception-succeeded* nil)
-  (while (ros::ok)
-    (ros::spin-once)
-    (ros::sleep)
-    (if *perception-succeeded*
-        (return-from test-valve-recognition nil))
-    )
+  (test-run-valve-recognition)
   )
 
 (defun test-valve-motion ()
+  (send *ri* :start-impedance :arms :k-p 300 :d-p 800 :m-p 10 :m-r 2 :d-r 80 :k-r 40)
+  ;;(send *ri* :set-interpolation-mode :linear)
   (setq *col* (instance collision-link-parameter :init *robot*))
   (setq *ik-solver* (instance ik-solver
                               :init *robot*
                               :rarm
                               :ik-type :use-torso
+                              ;;:ik-type :fullbody-with-standcoords
                               :move-target (send *robot* :rarm :end-coords)
                               :trajectory *traj*
-                              :collision-parameter *col*))
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
   (send *robot* :reset-manip-pose)
   (send *col* :init-distance-table)
   (send *ik-solver* :solve
                :trajectory-resolution 10
+               :stop 50
                :collision-num 10 :debug-view t)
   )
 
 ;; (load "package://drc_task_common/euslisp/lib/valve.l")
 ;; (test-valve-recognition :jaxon)
-;; (test-valve-motion)
+;; (test-run-valve-recognition)
+;; (setq hoge (test-valve-motion))
+;; (send hoge :send-angle-vector-sequence-test *ri* *robot* 10.0)
+;; (send hoge :send-angle-vector-sequence-test *ri* *robot* 5.0)
+;; (send hoge :send-angle-vector-sequence-test *ri* *robot* 3.0)
+;; (send hoge :send-angle-vector-sequence-test *ri* *robot* 2.0)
+;; (send hoge :send-angle-vector-sequence-test *ri* *robot* 1.0)
+;; (do-until-key (test-run-valve-recognition) (setq hoge (test-valve-motion)) (send hoge :filter-look-at-hand *robot* :rarm) (send hoge :send-angle-vector-sequence-test *ri* *robot* 2.0) (send *ri* :wait-interpolation) (unix:sleep 10))

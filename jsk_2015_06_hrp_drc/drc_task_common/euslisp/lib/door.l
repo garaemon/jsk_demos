@@ -248,4 +248,4 @@
 ;; (load "package://drc_task_common/euslisp/lib/door.l")
 ;; (test-move-door-model-from-knob-coords)
 ;; (test-door-recognition :jaxon)
-;; (send *ri* :start-impedance :arms :k-p 300 :d-p 800 :m-p 10 :m-r 2 :d-r 80 :k-r 40)   
+;; (send *ri* :start-impedance :arms :k-p 300 :d-p 800 :m-p 10 :m-r 2 :d-r 80 :k-r 40)
