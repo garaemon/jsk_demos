@@ -447,14 +447,14 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
+        Max Value: 6.85024
+        Min Value: -1.12777
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color Transformer: AxisColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
@@ -502,9 +502,9 @@ Visualization Manager:
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color Transformer: RGB8
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -517,10 +517,10 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.01
       Style: Flat Squares
-      Topic: /full_cloud2
+      Topic: /multisense_local/resize_1_4/points
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Background Alpha: 0.8
       Background Color: 0; 0; 0
       Class: jsk_rviz_plugin/OverlayText
@@ -587,26 +587,27 @@ Visualization Manager:
     Current:
       Class: rviz_animated_view_controller/Animated
       Control Mode: Orbit
-      Distance: 3.6448
+      Distance: 3.13069
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Eye:
-        X: -1.64612
-        Y: -2.0195
-        Z: 2.47216
+        X: -0.0930803
+        Y: -1.24157
+        Z: 2.89249
       Focus:
-        X: 0.827995
-        Y: 0.329986
-        Z: 1.19027
+        X: 1.74805
+        Y: 0.192
+        Z: 0.8053
       Maintain Vertical Axis: true
       Mouse Enabled: true
       Name: Current View
       Near Clip Distance: 0.01
+      Placement Publish Topic: /rviz/camera_placement
       Placement Topic: /rviz/camera_placement
-      Target Frame: <Fixed Frame>
+      Target Frame: odom
       Transition Time: 0.5
       Up:
         X: 0
@@ -630,5 +631,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1278
-  X: 3819
+  X: 3800
   Y: 24

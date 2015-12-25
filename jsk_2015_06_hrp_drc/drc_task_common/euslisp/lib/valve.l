@@ -53,31 +53,33 @@
                             :coords
                             (send (send (car coords-list) :copy-worldcoords)
                                   :translate (float-vector -250 0 0))))
-                          (mapcar #'(lambda (c)
+                          (mapcar #'(lambda (c i)
+                                      (send c :rotate (* (/ (float i) (length coords-list))  (deg2rad -15)) :z)
                                       (make-cascoords :coords (send (send c :copy-worldcoords)
-                                                                    :translate (float-vector -30 0 0))))
-                                  coords-list)
+                                                                    :translate (float-vector -100 0 0))))
+                                  coords-list (range (length coords-list)))
                           (list
                            (make-cascoords 
                             :coords
                             (send (send (car (last coords-list)) :copy-worldcoords)
-                                  :translate (float-vector -250 0 0)))
+                                  :translate (float-vector -250 0 0))
+                            )
                            (make-cascoords 
                             :coords
                             (send (send (car (last coords-list)) :copy-worldcoords)
-                                  :translate (float-vector -350 0 -100)))
+                                  :translate (float-vector -350 150 -100)))
                            )
                           )
                   :parent-object valve-model)))))
 
-(defun coords-on-valve (theta &optional (r 150))
+(defun coords-on-valve (theta &optional (r 180))
   (let ((c (make-cascoords :pos (point-on-valve theta r))))
     (send c :rotate pi/2 :z)
     (send c :rotate -pi/2 :y)
     (send c :rotate (deg2rad (+ theta)) :x)
     c))
 
-(defun point-on-valve (theta &optional (r 150))
+(defun point-on-valve (theta &optional (r 180))
   (float-vector (* r (cos (deg2rad theta)))
                 (* r (sin (deg2rad theta)))
                 0))
@@ -116,7 +118,7 @@
   )
 
 (defun test-valve-motion ()
-  (send *ri* :start-impedance :arms :k-p 300 :d-p 800 :m-p 10 :m-r 2 :d-r 80 :k-r 40)
+  ;;(send *ri* :start-impedance :arms :k-p 300 :d-p 800 :m-p 10 :m-r 2 :d-r 80 :k-r 40)
   ;;(send *ri* :set-interpolation-mode :linear)
   (setq *col* (instance collision-link-parameter :init *robot*))
   (setq *ik-solver* (instance ik-solver
@@ -131,12 +133,13 @@
   (send *robot* :reset-manip-pose)
   (send *col* :init-distance-table)
   (send *ik-solver* :solve
-               :trajectory-resolution 10
+               :trajectory-resolution 20
                :stop 50
                :collision-num 10 :debug-view t)
   )
 
 ;; (load "package://drc_task_common/euslisp/lib/valve.l")
+;; (send *ri* :start-impedance :arms :moment-gain (float-vector 0 0 0) :k-p 3000 :d-p 3000)
 ;; (test-valve-recognition :jaxon)
 ;; (test-run-valve-recognition)
 ;; (setq hoge (test-valve-motion))

@@ -2,12 +2,19 @@
   <arg name="INTERACTIVE" default="false" />
   <!-- Prepare pointcloud  -->
   <group ns="valve_detection">
-    <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="odom_laser">
+    <node pkg="jsk_pcl_ros" type="octree_voxel_grid" name="octree_voxel_grid">
       <remap from="~input" to="/full_cloud2" />
+      <rosparam>
+        resolution: 0.01
+      </rosparam>
+    </node>
+    <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="odom_laser">
+      <remap from="~input" to="octree_voxel_grid/output" />
       <rosparam>
         target_frame_id: ground
       </rosparam>
     </node>
+    
     <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="camera_laser">
       <remap from="~input" to="odom_laser/output" />
       <rosparam>
