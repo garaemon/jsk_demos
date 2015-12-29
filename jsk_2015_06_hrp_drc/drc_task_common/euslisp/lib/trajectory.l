@@ -1,12 +1,6 @@
+(load "package://drc_task_common/euslisp/lib/util.l")
 ;; trajectory.l
 (ros::roseus-add-msgs "visualization_msgs")
-
-(defun range (max)
-  (let ((ret nil))
-    (dotimes (i max)
-      (setq ret (append ret (list i)))
-      )
-    ret))
 
 (defun coords-set-to-arrow (coords-set)
   (require "models/arrow-object")
