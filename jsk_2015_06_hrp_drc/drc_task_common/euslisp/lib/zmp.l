@@ -143,8 +143,14 @@
         ))
     )
   (:evaluate ()
-    (let ((min-value (apply #'min (send self :all-distance-from-edge))))
-      min-value))
+    ;; return 0-1 value
+    ;; 0 --> unreliable
+    ;; 1 --> reliable
+    (let ((max-distance (send self :distance-from-edge (float-vector 0 0 0))))
+      (let ((min-value (apply #'min (send self :all-distance-from-edge))))
+        ;; min-value = 0 --> unreliable
+        ;; min-value = max-distance --> reliable
+        (1- (/ min-value max-distance)))))
   )
 
 (defclass zmp-evaluator
