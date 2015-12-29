@@ -5,6 +5,7 @@
 (load "package://drc_task_common/euslisp/lib/periodic-rate.l")
 (load "package://drc_task_common/euslisp/lib/util.l")
 (load "package://drc_task_common/euslisp/lib/trajectory.l")
+(load "package://drc_task_common/euslisp/lib/zmp.l")
 (ros::roseus-add-msgs "geometry_msgs")
 (ros::roseus-add-msgs "jsk_recognition_msgs")
 
@@ -98,13 +99,27 @@
         (return-from test-run-valve-recognition nil))
     ))
 
+(defun test-valve ()
+  (load-robot-model :jaxon)
+  (unless (boundp '*robot*)
+    (setq *robot* (instance jaxon_red-robot :init)))
+  (send *robot* :fix-leg-to-coords (make-coords))
+  (setq *valve* (valve-model))
+  (setq *traj* (valve-manipulation-trajectory *valve*))
+  (send *valve* :newcoords (make-coords :pos (float-vector 900 -300 1200)))
+  (send *valve* :rotate (deg2rad 90) :y)
+  (send *valve* :rotate (deg2rad -90) :z)
+  (objects (list *robot* *valve* *traj*))
+  )
+
 (defun test-valve-recognition (robot-type)
   (ros::roseus "test_valve_recognition")
   (setq *tf-listener* (instance ros::transform-listener :init))
   (load-robot-model :jaxon)
   (unless (boundp '*ri*)
     (jaxon_red-init))
-  (setq *robot* (instance jaxon_red-robot :init))
+  (unless (boundp '*robot*)
+    (setq *robot* (instance jaxon_red-robot :init)))
   (setq *valve* (valve-model))
   (setq *traj* (valve-manipulation-trajectory *valve*))
   (setq *recog-result* (instance arrow-object :init))
@@ -135,8 +150,26 @@
   (send *ik-solver* :solve
                :trajectory-resolution 20
                :stop 50
-               :collision-num 10 :debug-view t)
+               :collision-num 10 :debug-view nil)
   )
+
+(defun test-valve-zmp ()
+  (ros::roseus "foo")
+  (format t "setup environment~%")
+  (test-valve)                          ;setup env
+  (format t  "generate motion~%")
+  (let* ((avs (test-valve-motion))
+         (zmp-robot (instance jaxon_red-robot :init))
+         (zmp (instance zmp-evaluator :init zmp-robot)))
+    (format t "generating zmp trajectory~%")
+    (let ((zmp-traj (send zmp :evaluate-zmp :angle-vector-sequence avs
+                              :start-angle-vector (send *robot* :reset-manip-pose)
+                              :dt 0.01
+                              :speed-factor 10.0
+                              :debug-view nil)))
+      (send zmp-traj :publish-zmp-plot)
+      (send zmp-traj :evaluate)
+      )))
 
 ;; (load "package://drc_task_common/euslisp/lib/valve.l")
 ;; (send *ri* :start-impedance :arms :moment-gain (float-vector 0 0 0) :k-p 3000 :d-p 3000)
