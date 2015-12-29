@@ -211,7 +211,8 @@
         (let ((zmp-traj (send zmp :evaluate-zmp :angle-vector-sequence avs
                               :start-angle-vector (send *robot* :reset-manip-pose)
                               :dt dt
-                              :debug-view t)))
+                              :speed-factor 10.0
+                              :debug-view nil)))
           (send zmp-traj :publish-zmp-plot)
           zmp-traj)))))
 

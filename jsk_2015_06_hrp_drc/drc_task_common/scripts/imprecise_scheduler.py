@@ -8,17 +8,22 @@ import numpy as np
 from scipy import signal, interpolate
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from optimization_container import QualityTable, OptimizationContainer
+from drc_task_common.optimization_container import QualityTable, OptimizationContainer
 plt.ion()                       # enable interactive mode
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--p0', default=1.0, type=float)
 parser.add_argument('--m0', default=1.0, type=float)
+parser.add_argument('--e0', default=0.0, type=float)
 parser.add_argument('--p1', default=1.0, type=float)
+parser.add_argument('--p-tracking', default=0.0, type=float)
 parser.add_argument('--m1', default=1.0, type=float)
 parser.add_argument('--e1', default=1.0, type=float)
 parser.add_argument('sigma', type=float)
+parser.add_argument('--wait', action="store_true")
+parser.add_argument('--quiet', action="store_true")
+parser.add_argument('--incremental', action="store_true")
 args = parser.parse_args()
 deadline_sigma = args.sigma
 
@@ -28,26 +33,29 @@ perception_csv = "epsilon_plane_sigma.csv"
 planning_csv = "ik_sigma_epsilon.csv"
 execution_csv = "zmp-door_epsilon_sigma.csv"
 all_planning_csv = "ik_sigma_epsilon_all.csv"
+tracking_csv = "tracking_sigma_epsilon.csv"
 initial_dx = 10.0               # 1cm downsample is default
+initial_track_d = 0.005
 initial_collision = 5
 initial_traj = 12
 initial_execution_sigma = 20.0198
 
 ax = plt.figure().add_subplot(111)
-ax.set_xlabel('$\sigma$')
-ax.set_ylabel('$\epsilon$')
+ax.set_xlabel('$t$')
+ax.set_ylabel('$q$')
 
 # check direction
 container = OptimizationContainer()
 
 
-p0_table = QualityTable("p0", "epsilon_plane_sigma.csv", args.p0)
-m0_table = QualityTable("m0", "ik_sigma_epsilon.csv", args.m0)
-m0_all_table = QualityTable("m0", "ik_sigma_epsilon_all.csv", args.m0)
-p1_table = QualityTable("p1", "epsilon_plane_sigma.csv", args.p1)
-m1_table = QualityTable("m1", "ik_sigma_epsilon.csv", args.m1)
-e1_table = QualityTable("e1", "zmp-door_epsilon_sigma.csv", args.e1)
-
+p0_table = QualityTable("q_{p0}", "epsilon_plane_sigma.csv", args.p0)
+m0_table = QualityTable("q_{m0}", "ik_sigma_epsilon.csv", args.m0)
+m0_all_table = QualityTable("q_{m0}", "ik_sigma_epsilon_all.csv", args.m0)
+p1_table = QualityTable("q_{p1}", "epsilon_plane_sigma.csv", args.p1)
+m1_table = QualityTable("q_{m1}", "ik_sigma_epsilon.csv", args.m1)
+e0_table = QualityTable("q_{e0}", "zmp-door_epsilon_sigma.csv", args.e0)
+e1_table = QualityTable("q_{e1}", "zmp-door_epsilon_sigma.csv", args.e1)
+p_tracking_table = QualityTable("q_{p_{{\rm tracking}}}", tracking_csv, args.p_tracking)
 
 if args.p0 != 0.0:    
     container.register_quality_table(p0_table, p0_table.lookup_value('dx', initial_dx, 'sigma'))
@@ -55,6 +63,8 @@ if args.m0 != 0.0:
     container.register_quality_table(m0_table, m0_all_table.lookup_value2('collision', 'trajectory',
                                                                           initial_collision, initial_traj,
                                                                           'sigma'))
+if args.e0 != 0.0:
+    container.register_quality_table(e0_table, initial_execution_sigma)
 if args.p1 != 0.0:
     container.register_quality_table(p1_table, p1_table.lookup_value('dx', initial_dx, 'sigma'))
 if args.m1 != 0.0:
@@ -63,19 +73,30 @@ if args.m1 != 0.0:
                                                                           'sigma'))
 if args.e1 != 0.0:
     container.register_quality_table(e1_table, initial_execution_sigma)
-
-print "Initial sigma:", container.current_sigma()
+if args.p_tracking != 0.0:
+    container.register_quality_table(p_tracking_table, p_tracking_table.lookup_value('d', initial_track_d, 'sigma'))
+# print "Initial sigma:", container.current_sigma()
 if container.current_sigma() < deadline_sigma:
-    print "Increase sigma"
+    # print "Increase sigma"
     container.setDirectionPositve()
 else:
-    print "Decrease sigma"
+    # print "Decrease sigma"
     container.setDirectionNegative()
-raw_input()    
+if args.wait:
+    raw_input()
+
 while not container.is_converged(deadline_sigma):
     if not container.proc():
         container.draw(ax)
         break
     container.draw(ax)
-print "epsilon =", container.current_epsilon()
-raw_input()
+    if args.incremental:
+        container.printOverview2(deadline_sigma)
+    if args.wait:
+        raw_input()
+if not args.incremental:
+    if args.quiet:
+        container.printOverview2(deadline_sigma)
+    else:
+        container.printOverview(deadline_sigma)
+        raw_input()
