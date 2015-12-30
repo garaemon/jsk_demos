@@ -48,3 +48,4 @@
                               (append result (list (subseq str 0 pos))))))
         (t
          (append result (list str)))))
+

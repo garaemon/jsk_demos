@@ -1,11 +1,13 @@
 <launch>
   <arg name="INTERACTIVE" default="false" />
+  <arg name="RESOLUTION" default="0.01" />
+  <include file="$(find drc_task_common)/launch/conservative_valve_viewer.launch" />
   <!-- Prepare pointcloud  -->
   <group ns="valve_detection">
     <node pkg="jsk_pcl_ros" type="octree_voxel_grid" name="octree_voxel_grid">
       <remap from="~input" to="/full_cloud2" />
-      <rosparam>
-        resolution: 0.01
+      <rosparam subst_value="true">
+        resolution: $(arg RESOLUTION)
       </rosparam>
     </node>
     <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="odom_laser">
@@ -43,14 +45,14 @@
       <remap from="~indices" to="normal_direction_filter/output" />
     </node>
     <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="normal_direction_filter_points_camera">
-      <remap from="~input" to="normal_direction_filter_points/output"/>
+      <remap from="~input" to="normal_estimation/output_with_xyz"/>
       <rosparam>
         target_frame_id: left_camera_optical_frame
       </rosparam>
     </node>
     <node pkg="jsk_pcl_ros" type="region_growing_multiple_plane_segmentation" name="region_growing_multiple_plane_segmentation">
-      <remap from="~input" to="normal_direction_filter_points/output" />
-      <remap from="~input_normal" to="normal_direction_filter_points/output" />
+      <remap from="~input" to="normal_estimation/output_with_xyz" />
+      <remap from="~input_normal" to="normal_estimation/output_with_xyz" />
       <rosparam>
         max_area: 5.0
         min_area: 0.05
@@ -58,12 +60,12 @@
     </node>
     <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer"
           name="region_growing_result_decomposer">
-      <remap from="~input" to="normal_direction_filter_points/output" />
+      <remap from="~input" to="normal_estimation/output_with_xyz" />
       <remap from="~target" to="region_growing_multiple_plane_segmentation/output/inliers"/>
     </node>
 
     <node pkg="jsk_pcl_ros" type="plane_concatenator" name="plane_concatenator" output="screen">
-      <remap from="~input" to="normal_direction_filter_points/output" />
+      <remap from="~input" to="normal_estimation/output_with_xyz" />
       <remap from="~input/indices" to="region_growing_multiple_plane_segmentation/output/inliers" />
       <remap from="~input/polygons" to="region_growing_multiple_plane_segmentation/output/polygons" />
       <remap from="~input/coefficients" to="region_growing_multiple_plane_segmentation/output/coefficients" />
@@ -81,7 +83,7 @@
     </node>
 
     <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer" name="cluster_point_indices_decomposer">
-      <remap from="~input" to="normal_direction_filter_points/output" />
+      <remap from="~input" to="normal_estimation/output_with_xyz" />
       <remap from="~target" to="region_growing_multiple_plane_segmentation/output/clustering_result" />
     </node>
     <node pkg="jsk_perception" type="hsv_decomposer" name="hsv_decomposer">
@@ -236,12 +238,48 @@
       <remap from="~input" to="euclidean_clustering_decomposer/debug_output" />
       <remap from="~input/pose" to="torus_finder/output/pose" />
     </node>
+    <node pkg="drc_task_common" type="octree_info.py" name="octree_info">
+      <remap from="~cloud" to="octree_voxel_grid/output" />
+      <remap from="~resolution" to="octree_voxel_grid/output_resolution" />
+      <rosparam>
+        text_size: 24
+      </rosparam>
+    </node>
+    <node pkg="drc_task_common" type="scan_time_info.py" name="scan_time_info">
+      <remap from="~range" to="/tilt_laser_listener/output" />
+      <rosparam>
+        text_size: 24
+      </rosparam>
+    </node>
+    <node pkg="jsk_rviz_plugins" type="float32_to_overlay_text.py" name="torus_finder_info">
+      <remap from="~input" to="torus_finder/output/latest_time" />
+      <rosparam>
+        format: "Torus fitting took {0} sec"
+        text_size: 24
+        top: 80
+      </rosparam>
+    </node>
+    <node pkg="jsk_rviz_plugins" type="float32_to_overlay_text.py" name="icp_info">
+      <remap from="~input" to="icp_registration/output/latest_time" />
+      <rosparam>
+        format: "ICP registration took {0} sec"
+        text_size: 24
+        top: 120
+      </rosparam>
+    </node>
+    <node pkg="jsk_rviz_plugins" type="float32_to_overlay_text.py" name="plane_segmentation_info">
+      <remap from="~input" to="region_growing_multiple_plane_segmentation/output/latest_time" />
+      <rosparam>
+        format: "Plane segmentation took {0} sec"
+        text_size: 24
+        top: 40
+      </rosparam>
+    </node>
+    
   </group>
   <node pkg="jsk_rviz_plugins" type="rosconsole_overlay_text.py" name="rosconsole_overlay_text">
     <rosparam>
       nodes_regexp: ^/valve_detection
     </rosparam>
   </node>
-  <include file="$(find drc_task_common)/launch/conservative_valve_viewer.launch" />
-  
 </launch>

@@ -145,6 +145,14 @@
       ;; sort
       (sort valid-distance-table #'(lambda (x y) (< (cdr x) (cdr y))))
       (mapcar #'car (subseq valid-distance-table 0 n))))
+  (:max-collision-link-pairs 
+   (link-list)
+   (let ((valid-distance-table
+          (remove-if-not #'(lambda (d)
+                             (let ((pair (car d)))
+                               (send pair :include link-list)))
+                         distance-table)))
+     (length valid-distance-table)))
   (:collision-avoidance-link-pair (link-list num)
     (send-all (send self :collision-link-pairs link-list num) :to-list link-list))
   )

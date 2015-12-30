@@ -20,8 +20,12 @@ Panels:
         - /Pose2
         - /Pose3
         - /Camera1
+        - /OverlayText2
+        - /OverlayText3
+        - /OverlayText4
+        - /OverlayText5
       Splitter Ratio: 0.5
-    Tree Height: 359
+    Tree Height: 466
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -480,7 +484,7 @@ Visualization Manager:
       Marker Topic: /trajectory_marker
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: jsk_rviz_plugin/TorusArray
@@ -603,6 +607,78 @@ Visualization Manager:
         TorusArray: true
         Value: true
       Zoom Factor: 1
+    - Background Alpha: 0.8
+      Background Color: 0; 0; 0
+      Class: jsk_rviz_plugin/OverlayText
+      Enabled: true
+      Foreground Alpha: 0.8
+      Foreground Color: 25; 255; 240
+      Name: OverlayText
+      Overtake Color Properties: false
+      Overtake Position Properties: false
+      Topic: /valve_detection/scan_time_info/text
+      Value: true
+      font: DejaVu Sans Mono
+      height: 128
+      left: 0
+      line width: 2
+      text size: 12
+      top: 0
+      width: 128
+    - Background Alpha: 0.8
+      Background Color: 0; 0; 0
+      Class: jsk_rviz_plugin/OverlayText
+      Enabled: true
+      Foreground Alpha: 0.8
+      Foreground Color: 25; 255; 240
+      Name: OverlayText
+      Overtake Color Properties: false
+      Overtake Position Properties: false
+      Topic: /valve_detection/plane_segmentation_info/text
+      Value: true
+      font: DejaVu Sans Mono
+      height: 128
+      left: 0
+      line width: 2
+      text size: 12
+      top: 0
+      width: 128
+    - Background Alpha: 0.8
+      Background Color: 0; 0; 0
+      Class: jsk_rviz_plugin/OverlayText
+      Enabled: true
+      Foreground Alpha: 0.8
+      Foreground Color: 25; 255; 240
+      Name: OverlayText
+      Overtake Color Properties: false
+      Overtake Position Properties: false
+      Topic: /valve_detection/torus_finder_info/text
+      Value: true
+      font: DejaVu Sans Mono
+      height: 128
+      left: 0
+      line width: 2
+      text size: 12
+      top: 0
+      width: 128
+    - Background Alpha: 0.8
+      Background Color: 0; 0; 0
+      Class: jsk_rviz_plugin/OverlayText
+      Enabled: true
+      Foreground Alpha: 0.8
+      Foreground Color: 25; 255; 240
+      Name: OverlayText
+      Overtake Color Properties: false
+      Overtake Position Properties: false
+      Topic: /valve_detection/icp_info/text
+      Value: true
+      font: DejaVu Sans Mono
+      height: 128
+      left: 0
+      line width: 2
+      text size: 12
+      top: 0
+      width: 128
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -630,20 +706,20 @@ Visualization Manager:
     Current:
       Class: rviz_animated_view_controller/Animated
       Control Mode: Orbit
-      Distance: 2.8214
+      Distance: 4.47753
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Eye:
-        X: -1.06867
-        Y: -1.61017
-        Z: 1.32123
+        X: -1.97216
+        Y: -0.775198
+        Z: 3.38289
       Focus:
-        X: 0.705531
-        Y: 0.478793
-        Z: 0.651368
+        X: 1.34521
+        Y: -0.0994383
+        Z: 0.452587
       Maintain Vertical Axis: true
       Mouse Enabled: true
       Name: Current View
@@ -676,5 +752,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1278
-  X: 3815
+  X: 3780
   Y: 732

@@ -2,6 +2,7 @@
 (load "package://drc_task_common/euslisp/lib/collision-link-parameter.l")
 (load "package://drc_task_common/euslisp/lib/angle-vector-sequence.l")
 (load "package://jsk_footstep_planner/euslisp/footplace_planner_for_manipulation.l")
+(load "package://drc_task_common/euslisp/lib/table.l")
 
 (defun robot-footpoint (r)
   (apply #'midpoint 0.5
@@ -216,6 +217,29 @@
         (send-all (send robot :bodies) :set-color nil nil))
       )
     )
+  (:profile 
+   (&key (max-trajectory 50) (test-num 10) (stop 50))
+   (let ((tbl (instance table :init '("time" "collision-num" "trajectory-num" "success"))))
+     (let ((min-trajectory (send trajectory :min-resolution))
+           (max-collision (send col-parameter :max-collision-link-pairs (send self :link-list))))
+       (dotimes (i max-trajectory)
+         (when (> i min-trajectory)
+           (dotimes (j max-collision)
+             (dotimes (k test-num)
+               ;; record all the data
+               (format t "test ~A:~%" k)
+               (format t "  trajectory: ~A~%" i)
+               (format t "  collision: ~A~%" j)
+               (let ((timer (instance mtimer :init)))
+                 (send timer :start)
+                 (let ((result (send self :solve :trajectory-resolution i
+                                     :collision-num j
+                                     :stop stop)))
+                 (let ((tm (send timer :stop)))
+                   (send tbl :add (list tm j i (not (null result))))
+                   )))))))
+       (send tbl :print))
+     tbl))
   )
 
 
