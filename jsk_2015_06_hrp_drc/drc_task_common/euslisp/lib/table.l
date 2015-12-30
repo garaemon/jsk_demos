@@ -1,0 +1,68 @@
+;; table.l
+(load "package://drc_task_common/euslisp/lib/util.l")
+
+(defclass table
+  :super propertied-object
+  :slots (column data))
+
+(defmethod table
+  (:init (acolumn &optional (adata))
+    (setq column acolumn)
+    (setq data adata)
+    self)
+  (:add (new-data)
+    (setq data (append data (list new-data)))
+    t)
+  (:column-index (c)
+    (position c column-index :test #'equal))
+  (:sort-by (column)
+    )
+  (:write (file)
+    (with-open-file (f file :direction :output)
+      (format f "~A~%" (string-join "," column))
+      (dolist (d data)
+        (format f "~A~%" (string-join "," (mapcar #'string d))))
+      )
+    self)
+  (:print ()
+    ;; print column
+    (format t "~A data~%" (length data))
+    (format t "=====================================~%")
+    (format t "~A~%" (string-join " " column))
+    (dolist (d data)
+      (dotimes (i (length d))
+        (let ((column (elt column i)))
+          (format t (format nil "~A~A~A" "~" (length column) "f") (elt d i))
+          (if (= i (1- (length d)))     ;last one
+              (format t "~%")
+            (format t " ")
+            ))))
+    (format t "=====================================~%")
+    )
+  )
+
+(defun load-table (file)
+  (with-open-file (f file :direction :input)
+    (let ((column (string-split #\, (read-line f nil nil))))
+      (let ((tbl (instance table :init column))
+            (line nil))
+        (while (setq line (read-line f nil nil))
+          (send tbl :add (mapcar #'read-from-string (string-split #\, line))))
+        tbl))))
+
+(defun test-table-write ()
+  (let ((tbl (instance table :init '("foo" "bar" "foobar"))))
+    (send tbl :add '(1 2 3))
+    (send tbl :add '(1 2 3))
+    (send tbl :add '(1 2 3))
+    (send tbl :add '(1 2 3))
+    (send tbl :add '(1 2 3))
+    (send tbl :print)
+    (send tbl :write "/tmp/foo.csv")
+    ))
+
+(defun test-table-read ()
+  (let ((tbl (load-table "/tmp/foo.csv")))
+    tbl))
+
+;; (load "table.l")
