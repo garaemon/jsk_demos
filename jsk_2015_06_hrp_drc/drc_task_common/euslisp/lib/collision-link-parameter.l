@@ -14,7 +14,9 @@
   (:from () from)
   (:to () to)
   (:include (link-list)
-    (dolist (l link-list)
+    (dolist (l link-list)               ;check by name
+      ;; (if (or (string= (send l :name) (send from :name))
+      ;;         (string= (send l :name) (send to :name)))
       (if (or (eq l from)
               (eq l to))
           (return-from :include t)))
@@ -103,6 +105,8 @@
 (defmethod collision-link-parameter
   (:init (r)
     (setq robot r))
+  (:initializedp
+    distance-table)
   (:link-volume (l)
     (reduce #'+ (mapcar #'abs (send-all (send l :bodies) :volume))))
   (:is-valid-link (l &optional (volume-thre 200000))
@@ -132,6 +136,7 @@
                   (setq valid-link-pairs (append valid-link-pairs (list pair))))))))
       valid-link-pairs))
   (:init-distance-table (&key (distance-thre 50))
+    (format t "initializing collision distance table~%")
     (let ((link-pairs (send self :valid-link-pairs :distance-thre distance-thre)))
       (setq distance-table (mapcar #'(lambda (p)
                                        (cons p (send p :link-distance)))

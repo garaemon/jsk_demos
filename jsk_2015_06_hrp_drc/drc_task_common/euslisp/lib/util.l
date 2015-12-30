@@ -49,3 +49,18 @@
         (t
          (append result (list str)))))
 
+
+(defun transpose-list-array (data)
+  ;; data := '((a0 b0 c0) (a1 b1 c1) .. (aN bN cN))
+  ;; output := '((a0 a1 .. aN) ... (c0 c1 .. cN))
+  (let ((row (length data))
+        (column (length (elt data 0))))
+    (mapcar #'(lambda (i)
+                (mapcar #'(lambda (d)
+                            (elt d i))
+                        data))
+            (range column))
+    ))
+
+(defun mean (data)
+  (/ (reduce #'+ data) (length data)))

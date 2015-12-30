@@ -6,6 +6,7 @@
 (load "package://drc_task_common/euslisp/lib/util.l")
 (load "package://drc_task_common/euslisp/lib/trajectory.l")
 (load "package://drc_task_common/euslisp/lib/zmp.l")
+(load "package://drc_task_common/euslisp/lib/robot-model-manager.l")
 (ros::roseus-add-msgs "geometry_msgs")
 (ros::roseus-add-msgs "jsk_recognition_msgs")
 
@@ -100,9 +101,9 @@
     ))
 
 (defun test-valve ()
-  (load-robot-model :jaxon)
+  (setq *man* (instance robot-model-manager :init :jaxon))
   (unless (boundp '*robot*)
-    (setq *robot* (instance jaxon_red-robot :init)))
+    (setq *robot* (send *man* :model :visualization)))
   (send *robot* :fix-leg-to-coords (make-coords))
   (setq *valve* (valve-model))
   (setq *traj* (valve-manipulation-trajectory *valve*))
@@ -125,7 +126,7 @@
   (setq *recog-result* (instance arrow-object :init))
   (objects (list *robot* *valve* *recog-result* *traj*))
   (ros::advertise "trajectory_marker" visualization_msgs::Marker)
-  (ros::subscribe "/valve_detection/icp_registration/output_pose" 
+  (ros::subscribe "/valve_detection/icp_registration/output_pose"
                   geometry_msgs::PoseStamped
                   #'test-valve-recognition-callback)
   ;; run recognition until perception succeeded
@@ -135,18 +136,19 @@
 (defun test-valve-motion ()
   ;;(send *ri* :start-impedance :arms :k-p 300 :d-p 800 :m-p 10 :m-r 2 :d-r 80 :k-r 40)
   ;;(send *ri* :set-interpolation-mode :linear)
-  (setq *col* (instance collision-link-parameter :init *robot*))
+  (setq *col* (instance collision-link-parameter :init (send *man* :model :collision)))
   (setq *ik-solver* (instance ik-solver
-                              :init *robot*
+                              :init (send *man* :model :ik-model)
                               :rarm
                               :ik-type :use-torso
                               ;;:ik-type :fullbody-with-standcoords
-                              :move-target (send *robot* :rarm :end-coords)
+                              :move-target (send (send *man* :model :ik-model) :rarm :end-coords)
                               :trajectory *traj*
                               :collision-parameter *col*
-                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
-  (send *robot* :reset-manip-pose)
-  (send *col* :init-distance-table)
+                              :prepare-angle-vector (send (send *man* :model :ik-model) :reset-manip-pose)))
+  (unless (send *col* :initializedp)
+    (send (send *man* :model :collision) :reset-manip-pose)
+    (send *col* :init-distance-table))
   (send *ik-solver* :solve
                :trajectory-resolution 20
                :stop 50
@@ -155,8 +157,10 @@
 
 (defun valve-motion-profile ()
   (test-valve)
-  (setq *col* (instance collision-link-parameter :init *robot*))
-  (send *col* :init-distance-table)
+  (unless (boundp '*col*)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send (send *man* :model :collision) :reset-manip-pose)
+    (send *col* :init-distance-table))
   (setq *ik-solver* (instance ik-solver
                               :init *robot*
                               :rarm
@@ -166,7 +170,39 @@
                               :trajectory *traj*
                               :collision-parameter *col*
                               :prepare-angle-vector (send *robot* :reset-manip-pose)))
-  (send *ik-solver* :profile)
+  (setq *ik-profile* (send *ik-solver* :profile :test-num 10 :max-trajectory 20 :max-collision 10))
+  (let ((tbl (send *ik-profile* :average '("time") '("success")))
+        (target-collision-nums '(0 1 5 9)))
+    (let ((collision-per-tables (mapcar #'(lambda (c)
+                                            (send tbl :filter-if #'(lambda (tbl column data)
+                                                                     (= c (elt data (send tbl :column-index "collision-num"))))))
+                                        target-collision-nums)))
+      (ros::advertise "/ik_plot_resolution" jsk_recognition_msgs::PlotDataArray)
+      (ros::publish "/ik_plot_resolution"
+        (multi-plot-data (mapcar #'(lambda (c i)
+                                     (list (send c :column-data "trajectory-num")
+                                           (send c :column-data "time")
+                                           :label (format nil "$N_{collision} = ~A$" i)
+                                           ))
+                                 collision-per-tables target-collision-nums)
+                         :legend-font-size 24))
+      ))
+  (let ((tbl (send *ik-profile* :average '("time") '("success")))
+        (target-trajectory-nums '(11 19)))
+    (let ((trajectory-per-tables (mapcar #'(lambda (c)
+                                            (send tbl :filter-if #'(lambda (tbl column data)
+                                                                     (= c (elt data (send tbl :column-index "trajectory-num"))))))
+                                        target-trajectory-nums)))
+      (ros::advertise "/ik_plot_resolution" jsk_recognition_msgs::PlotDataArray)
+      (ros::publish "/ik_plot_resolution"
+        (multi-plot-data (mapcar #'(lambda (c i)
+                                     (list (send c :column-data "collision-num")
+                                           (send c :column-data "time")
+                                           :label (format nil "$N_{trajectory} = ~A$" i)
+                                           ))
+                                 trajectory-per-tables target-trajectory-nums)
+                         :legend-font-size 24))
+      ))
   )
 
 (defun test-valve-zmp ()

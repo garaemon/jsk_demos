@@ -1,7 +1,12 @@
+(require "models/arrow-object")
+(load "package://drc_task_common/euslisp/lib/collision-link-parameter.l")
+(load "package://drc_task_common/euslisp/lib/ik-solver.l")
 (load "package://drc_task_common/euslisp/test-drc-door-task.l")
 (load "package://drc_task_common/euslisp/lib/periodic-rate.l")
 (load "package://drc_task_common/euslisp/lib/util.l")
 (load "package://drc_task_common/euslisp/lib/trajectory.l")
+(load "package://drc_task_common/euslisp/lib/zmp.l")
+(load "package://drc_task_common/euslisp/lib/robot-model-manager.l")
 (ros::roseus-add-msgs "geometry_msgs")
 
 (defun move-door-model-from-knob-coords (door origin->recog robot-coords)
@@ -56,23 +61,14 @@
 (defun test-door-recognition (robot-type)
   (ros::roseus "test_door_recognition")
   (setq *tf-listener* (instance ros::transform-listener :init))
-  (if (eq robot-type :hrp2)
-      (progn
-        (require "package://hrpsys_ros_bridge_tutorials/euslisp/hrp2jsknt-interface.l")
-        (unless (boundp '*robot*)
-          (setq *robot* (instance hrp2jsknt-robot :init))))
-    (progn
-      (require "package://hrpsys_ros_bridge_tutorials/euslisp/jaxon_red-interface.l")
-      (unless (boundp '*robot*)
-          (setq *robot* (instance jaxon_red-robot :init)))))
-  (require "models/arrow-object")
+  (setq *man* (instance robot-model-manager :init :jaxon))
+  (setq *robot* (send *man* :model :visualization))
   (setq *door* (instance param-door :init 700 60 100 20
                          (float-vector 0 -640 950)
                          (float-vector -60 -600 950)
                          :use-leg t
                          :handle-l/r :right))
   (setq *recog-result* (instance arrow-object :init))
-  
   (objects (list *door* *robot* *recog-result*))
   (ros::advertise "trajectory_marker" visualization_msgs::Marker)
   (ros::subscribe "/door_detection/door_handle" 
@@ -243,6 +239,37 @@
   (send *ik-solver* :solve
                :trajectory-resolution 10
                :collision-num 10 :debug-view t)
+  )
+
+(defun test-door ()
+  (setq *man* (instance robot-model-manager :init :jaxon))
+  (setq *robot* (send *man* :model :visualization))
+  (setq *door* (instance param-door :init 700 60 100 20
+                         (float-vector 0 -640 950)
+                         (float-vector -60 -600 950)
+                         :use-leg t
+                         :handle-l/r :right))
+  
+  (send *robot* :fix-leg-to-coords (make-coords))
+  (setq *traj* (door-manipulation-trajectory *door* :robot :jaxon))
+  (send *door* :locate (float-vector 600 0 0) :world)
+  (objects (list *door* *robot* *traj*))
+  (let ((foot-midcoords (send *robot* :foot-midcoords)))
+      (send *robot* :reset-manip-pose)
+      (robot-move-height *robot* 100)
+      (send *robot* :fix-leg-to-coords foot-midcoords))
+  (unless (boundp '*col*)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send *col* :init-distance-table)
+    )
+  (setq *ik-solver* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              :ik-type :use-torso
+                              :move-target (get (send *robot* :rarm :end-coords) :door-manipulation-move-target)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :angle-vector)))
   )
 
 ;; (load "package://drc_task_common/euslisp/lib/door.l")
