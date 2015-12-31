@@ -95,6 +95,7 @@
     (with-open-file (f file :direction :output)
       (format f "~A~%" (string-join "," column))
       (dolist (d data)
+        (print d)
         (format f "~A~%" (string-join "," (mapcar #'string d))))
       )
     self)

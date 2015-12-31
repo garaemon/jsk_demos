@@ -1,3 +1,10 @@
+(require "models/arrow-object")
+
+(defun arrow-object (&optional (scale 1.0))
+  (let ((obj (instance arrow-object :init)))
+    (send-all (send obj :bodies) :magnify scale)
+    obj))
+
 (defun range (max)
   (let ((ret nil))
     (dotimes (i max)

@@ -63,6 +63,11 @@
     min-via-coords-points)
   (:min-resolution ()
     (length min-via-coords-points))
+  (:via-coords-arrow-objects (&optional (resolution-num 0) (scale 1.0))
+    (mapcar #'(lambda (c)
+                (send (arrow-object scale) :newcoords c))
+            (send self :via-coords resolution-num))
+    )
   (:via-coords (&optional (resolution-num 0))
     (if (< resolution-num (send self :min-resolution)) ;overwrite resolution-num
         (setq resolution-num (send self :min-resolution)))

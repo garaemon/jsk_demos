@@ -240,7 +240,7 @@
                                      :collision-num j
                                      :stop stop)))
                  (let ((tm (send timer :stop)))
-                   (send tbl :add (list tm j i (not (null result))))
+                   (send tbl :add (list tm j i (if result 1 0)))
                    )))))))
        (send tbl :print))
      tbl))
