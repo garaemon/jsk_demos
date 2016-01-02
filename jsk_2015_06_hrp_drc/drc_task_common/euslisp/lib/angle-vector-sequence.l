@@ -1,8 +1,9 @@
 (load "package://drc_task_common/euslisp/lib/periodic-rate.l")
+(load "~/prog/euslib/rbrain/virtual_interpolator.l")
 
 (defclass angle-vector-sequence
   :super propertied-object
-  :slots (angle-vectors))
+  :slots (angle-vectors interpolated-angle-vectors interpolated-times))
 
 (defmethod angle-vector-sequence
   (:init ()
@@ -183,7 +184,7 @@
              (format t "        pos acc: ~A (~A -- ~A)~%" 
                      acc-pos (norm acc-pos)
                      (* (send (elt (send *robot* :arms :end-coords :parent) i) :weight)
-p                        (norm acc-pos) 0.001 0.001))
+                        (norm acc-pos) 0.001 0.001))
              (format t "        rot acc: ~A (~A -- ~A)~%" acc-rot (norm acc-rot)
                      (* (send (elt (send *robot* :arms :end-coords :parent) i) :weight)
                         (norm acc-rot)  0.001 0.001))
@@ -246,5 +247,23 @@ p                        (norm acc-pos) 0.001 0.001))
        (send pr :sleep))
      )
    )
+  (:all-duration (robot speed-factor &key (start-angle-vector))
+    (let ((tms (send self :duration-list robot start-angle-vector speed-factor)))
+      (reduce #'+ tms)))
+  ;; with 1 second offset
+  (:interpolate (robot start-angle-vector time-scale dt)
+    (let ((tms (send self :duration-list robot start-angle-vector time-scale)))
+      (let ((key-pose-av-list (cons start-angle-vector angle-vectors))
+            (key-pose-tm-list tms))
+        (let ((data (pos-list-interpolation
+                     key-pose-av-list key-pose-tm-list dt :interpolator-class minjerk-interpolator)))
+          (setq interpolated-angle-vectors (cadr (memq :data data)))
+          (setq interpolated-times (cadr (memq :time data)))
+          t))))
+  (:interpolate-if (robot start-angle-vector time-scale dt)
+    (unless (and interpolated-angle-vectors interpolated-times)
+      (send self :interpolate robot start-angle-vector time-scale dt)))
+  (:interpolated-angle-vectors () interpolated-angle-vectors)
+  (:interpolated-times () interpolated-times)
   )
 

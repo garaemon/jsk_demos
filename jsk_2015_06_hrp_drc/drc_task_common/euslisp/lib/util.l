@@ -71,3 +71,38 @@
 
 (defun mean (data)
   (/ (reduce #'+ data) (length data)))
+
+(in-package "GL")
+(defmethod glviewsurface
+  (:putstring
+   (x y str &optional (fid x:font-courb24)) ;;x::font-helvetica-bold-12))
+   (send self :makecurrent)
+   (glMatrixMode GL_PROJECTION)
+   (glPushMatrix)
+   (send self :2d-mode)
+   (unless (eq (get self :glxusexfont) fid)
+     (setf (get self :glxusexfont) fid)
+     (glxUseXfont fid 32 96 (+ 1000 32)))
+   (glRasterPos2i (round x) (- (send self :height) (round y)))
+   (glListBase 1000)
+   (glCallLists (length str) GL_UNSIGNED_BYTE str)
+   (send self :3d-mode)
+   (glMatrixMode GL_PROJECTION)
+   (glPopMatrix)
+   (glMatrixMode GL_MODELVIEW)
+   ))
+(in-package "USER")
+
+
+(defmacro with-tmp-objects
+    (vwer objs &rest progs)
+  (let ((original-objects (gensym)))
+    `(let ((,original-objects (send ,vwer :objects)))
+       (unwind-protect
+           (progn
+             (send ,vwer :objects (append (send ,vwer :objects) ,objs))
+             ,@progs)
+         (progn
+           (send ,vwer :objects ,original-objects)
+           )
+         ))))

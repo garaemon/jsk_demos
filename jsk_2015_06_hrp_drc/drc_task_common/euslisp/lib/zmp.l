@@ -1,10 +1,11 @@
-(load "~/prog/euslib/rbrain/virtual_interpolator.l")
 (load "package://drc_task_common/euslisp/lib/angle-vector-sequence.l")
 ;;(load "~/ros/hydro_parent/src/jskeus/irteus/irtdyna.l")
 (ros::roseus-add-msgs "jsk_recognition_msgs")
+(load "package://drc_task_common/euslisp/lib/table.l")
 (load "package://drc_task_common/euslisp/lib/util.l")
 (load "package://drc_task_common/euslisp/lib/plotlib.l")
 (load "package://drc_task_common/euslisp/lib/periodic-rate.l")
+
 
 (defun calc-zmp-diff-from-two-poses
     (original-key-pose-av-list
@@ -151,6 +152,12 @@
         ;; min-value = 0 --> unreliable
         ;; min-value = max-distance --> reliable
         (1- (/ min-value max-distance)))))
+  (:evaluate-full ()
+    (let ((max-distance (send self :distance-from-edge (float-vector 0 0 0))))
+      (let ((min-value (apply #'min (send self :all-distance-from-edge))))
+        ;; min-value = 0 --> unreliable
+        ;; min-value = max-distance --> reliable
+        (list max-distance min-value (1- (/ min-value max-distance))))))
   )
 
 (defclass zmp-evaluator
@@ -197,6 +204,28 @@
           (rleg (send r :make-sole-polygon :rleg)))
       (let ((all-vertices (append (send lleg :vertices) (send rleg :vertices))))
         (instance face :init :vertices (quickhull all-vertices)))))
+  (:profile (&key ((:angle-vector-sequence avs))
+                  (start-angle-vector)
+                  (max-speed-factor 10.0)
+                  (dt 0.01)
+                  (debug-view nil))
+    (let ((tbl (instance table :init '("speed-factor" "time" "max-zmp-distance" "min-zmp-distance" "e"))))
+      (let ((speed-factor 1.0))
+        (while (< speed-factor max-speed-factor)
+          (format t "testing speed-factor=~A~%" speed-factor)
+          (let ((zmp-traj (send self :evaluate-zmp :angle-vector-sequence avs
+                                :start-angle-vector start-angle-vector
+                                :speed-factor speed-factor
+                                :dt dt)))
+            (multiple-value-bind
+             (max-distance min-value e) (send zmp-traj :evaluate-full)
+             (send tbl :add (list speed-factor (send avs :all-duration robot speed-factor :start-angle-vector start-angle-vector)
+                                  max-distance min-value e))
+             )
+            )
+          (setq speed-factor (+ speed-factor 0.1)))
+        )
+      tbl))
   )
 
 (defun test-zmp-evaluator (&optional (dt 0.01))

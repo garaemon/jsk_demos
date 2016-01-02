@@ -7,6 +7,7 @@
 (load "package://drc_task_common/euslisp/lib/trajectory.l")
 (load "package://drc_task_common/euslisp/lib/zmp.l")
 (load "package://drc_task_common/euslisp/lib/robot-model-manager.l")
+(load "package://drc_task_common/euslisp/lib/end-effector.l")
 (ros::roseus-add-msgs "geometry_msgs")
 (ros::roseus-add-msgs "jsk_recognition_msgs")
 
@@ -136,24 +137,79 @@
 (defun test-valve-motion ()
   ;;(send *ri* :start-impedance :arms :k-p 300 :d-p 800 :m-p 10 :m-r 2 :d-r 80 :k-r 40)
   ;;(send *ri* :set-interpolation-mode :linear)
-  (setq *col* (instance collision-link-parameter :init (send *man* :model :collision)))
+  (setq *col* (instance collision-link-parameter :init *robot*))
   (setq *ik-solver* (instance ik-solver
-                              :init (send *man* :model :ik-model)
+                              :init *robot*
                               :rarm
                               :ik-type :use-torso
                               ;;:ik-type :fullbody-with-standcoords
-                              :move-target (send (send *man* :model :ik-model) :rarm :end-coords)
+                              :move-target (send *robot* :rarm :end-coords)
                               :trajectory *traj*
                               :collision-parameter *col*
-                              :prepare-angle-vector (send (send *man* :model :ik-model) :reset-manip-pose)))
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
   (unless (send *col* :initializedp)
-    (send (send *man* :model :collision) :reset-manip-pose)
+    (send *robot* :reset-manip-pose)
     (send *col* :init-distance-table))
   (send *ik-solver* :solve
-               :trajectory-resolution 20
+        :trajectory-resolution 20
                :stop 50
-               :collision-num 10 :debug-view nil)
+               :collision-num 10 :debug-view t)
   )
+
+(defun valve-ee ()
+  (ros::roseus "foobar")
+  (test-valve)
+  (unless (boundp '*col*)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send (send *man* :model :collision) :reset-manip-pose)
+    (send *col* :init-distance-table))
+  (setq *ik-solver* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              :ik-type :use-torso
+                              ;;:ik-type :fullbody-with-standcoords
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (let ((avs (send *ik-solver* :solve
+                      :trajectory-resolution 20
+                      :stop 50
+                      :collision-num 10 :debug-view nil))
+        (ee (instance end-effector-evaluator :init *robot* :rarm)))
+    (let ((tbl (send ee :profile avs :save-full-log t :log-name "valve"
+                     :dspeed-factor 0.1
+                     :max-speed-factor 10.0)))
+      tbl)
+    )
+  )
+
+(defun valve-zmp ()
+  (ros::roseus "foobar")
+  (test-valve)
+  (unless (boundp '*col*)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send (send *man* :model :collision) :reset-manip-pose)
+    (send *col* :init-distance-table))
+  (setq *ik-solver* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              :ik-type :use-torso
+                              ;;:ik-type :fullbody-with-standcoords
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (let ((avs (send *ik-solver* :solve
+                      :trajectory-resolution 20
+                      :stop 50
+                      :collision-num 10 :debug-view nil)))
+    (let* ((zmp-robot (send *man* :model :zmp))
+           (zmp (instance zmp-evaluator :init zmp-robot)))
+      (send (send zmp :profile :angle-vector-sequence avs :start-angle-vector (send *robot* :reset-manip-pose)
+                  :dt 0.01 :max-speed-factor 10.0)
+            :write "zmp.csv")
+      )))
 
 (defun valve-motion-profile ()
   (test-valve)

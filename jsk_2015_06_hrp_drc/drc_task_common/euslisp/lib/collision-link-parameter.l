@@ -1,3 +1,5 @@
+(load "package://drc_task_common/euslisp/lib/util.l")
+
 (defclass link-pair
   :super propertied-object
   :slots (from to))
@@ -222,21 +224,25 @@
       )))
   )
 
-(defun test-collision-link-parameter-jaxon ()
+(defun test-collision-link-parameter-jaxon (&optional (n 10))
   (require "package://hrpsys_ros_bridge_tutorials/euslisp/jaxon_red-interface.l")
   (unless (boundp '*robot*)
     (setq *robot* (instance jaxon_red-robot :init)))
   (unless (boundp '*irtviewer*)
     (make-irtviewer))
-  (send *robot* :reset-manip-pose)
+  ;;(send *robot* :reset-manip-pose)
+  (send *robot* :reset-pose)
   (let ((col (instance collision-link-parameter :init *robot*)))
     (setq *col* col)
     (send col :init-distance-table)
     (let ((ll (send *robot* :link-list (send *robot* :larm :end-coords :parent))))
-      (dotimes (i 200)
+      (dotimes (i n)
         (let ((pairs (send col :collision-link-pairs ll i)))
           (send *irtviewer* :objects (cons *robot* pairs))
-          (send *irtviewer* :draw-objects)
+          (send *irtviewer* :draw-objects :flush nil)
+          (send *irtviewer* :viewer :viewsurface :putstring 10 20
+                (format nil "collision num = ~A" i))
+          (send *irtviewer* :viewer :viewsurface :flush)
         )
       )))
   )

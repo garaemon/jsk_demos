@@ -272,6 +272,20 @@
                               :prepare-angle-vector (send *robot* :angle-vector)))
   )
 
+(defun door-ee ()
+  (ros::roseus "foobar")
+  (test-door)
+  (let ((avs (send *ik-solver* :solve
+                   :trajectory-resolution 20
+                   :stop 50
+                   :collision-num 10 :debug-view nil))
+        (ee (instance end-effector-evaluator :init *robot* :rarm)))
+    (let ((tbl (send ee :profile avs :save-full-log t :log-name "door"
+                     :dspeed-factor 0.1
+                     :max-speed-factor 10.0)))
+      tbl)
+    ))
+
 ;; (load "package://drc_task_common/euslisp/lib/door.l")
 ;; (test-move-door-model-from-knob-coords)
 ;; (test-door-recognition :jaxon)
