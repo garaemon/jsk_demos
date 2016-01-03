@@ -24,6 +24,7 @@
     (setq column acolumn)
     (setq data adata)
     self)
+  (:column () column)
   (:data () data)
   (:add (new-data)
     (setq data (append data (list new-data)))
@@ -90,6 +91,7 @@
       (sort data #'(lambda (x y)
                      (< (elt x index) (elt y index))))))
   (:filter-if (func)
+    "func := #'(lambda (tbl column d) ...)"
     (let ((tbl (instance table :init column)))
       (dolist (d data)
         (if (funcall func self column d)
@@ -101,7 +103,6 @@
                          :direction :output)
         (format f "~A~%" (string-join "," column))
         (dolist (d data)
-          (print d)
           (format f "~A~%" (string-join "," (mapcar #'string d))))
         )
       self))
@@ -122,6 +123,8 @@
             ))))
     (format t "=====================================~%")
     )
+  (:data-num ()
+    (length data))
   )
 
 (defun load-table (file)

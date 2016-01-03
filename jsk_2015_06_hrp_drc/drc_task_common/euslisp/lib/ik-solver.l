@@ -3,6 +3,7 @@
 (load "package://drc_task_common/euslisp/lib/angle-vector-sequence.l")
 (load "package://jsk_footstep_planner/euslisp/footplace_planner_for_manipulation.l")
 (load "package://drc_task_common/euslisp/lib/table.l")
+(load "package://drc_task_common/euslisp/lib/plotlib.l")
 
 (defun robot-footpoint (r)
   (apply #'midpoint 0.5
@@ -373,4 +374,56 @@
                :collision-num 50 :debug-view t))
   )
 
+(defun ik-csv-average (file)
+  (let ((tbl (load-table file)))
+    (send tbl :average '("time") '())))
+    
+
 ;; (load "package://drc_task_common/euslisp/lib/ik-solver.l")
+;; (send (ik-csv-average "package://drc_task_common/profile_data/motion/jaxon_door_ik.csv") :write "package://drc_task_common/profile_data/motion/jaxon_door_ik_average.csv")
+;; (send (ik-csv-average "package://drc_task_common/profile_data/motion/jaxon_valve_ik.csv") :write "package://drc_task_common/profile_data/motion/jaxon_valve_ik_average.csv")
+
+;; plot ik table codes
+;; (setq *tbl* (load-table "package://drc_task_common/profile_data/motion/jaxon_valve_ik_average.csv"))
+;; plot ik with different collision num
+(defun plot-ik-table-for-resolution (file &optional (collisions '(0 1 3 5 10 20 39)))
+  (let ((tbl (load-table file)))
+    (let ((per-collision-tables (mapcar #'(lambda (n)
+                                            (send tbl :filter-if #'(lambda (tbl column d)
+                                                                     (= n (car (send tbl :get-columns-values '("collision-num") d))))))
+                                        collisions)))
+      (ros::advertise "/plot" jsk_recognition_msgs::PlotDataArray)
+      (ros::publish "/plot" (multi-plot-data (mapcar #'(lambda (tbl n)
+                                                         (list (send tbl :get-column-value "trajectory-num")
+                                                               (send tbl :get-column-value "time")
+                                                               :label (format nil "Collision Pair = ~A" n)
+                                                               ))
+                                                     per-collision-tables collisions)
+                                             :min-y 0
+                                             :max-y 12
+                                             :no-legend t
+                                             :legend-font-size 24))
+      )))
+
+(defun plot-ik-table-for-collision (file &optional (trajectories '(8 12 20 29)))
+  (let ((tbl (load-table file)))
+    (let ((per-trajectory-tables (mapcar #'(lambda (n)
+                                            (send tbl :filter-if #'(lambda (tbl column d)
+                                                                     (= n (car (send tbl :get-columns-values '("trajectory-num") d))))))
+                                        trajectories)))
+      (ros::advertise "/plot" jsk_recognition_msgs::PlotDataArray)
+      (ros::publish "/plot" (multi-plot-data (mapcar #'(lambda (tbl n)
+                                                         (list (send tbl :get-column-value "collision-num")
+                                                               (send tbl :get-column-value "time")
+                                                               :label (format nil "Trajectory = ~A" n)
+                                                               ))
+                                                     per-trajectory-tables trajectories)
+                                             :min-y 0
+                                             :max-y 12
+                                             :no-legend t
+                                             :legend-font-size 24))
+      )))
+
+
+;; (mapcar #'(lambda (n) (send *tbl* :filter-if #'(lambda (tbl colu
+;; (send *tbl* :filter-if #'(lambda (tbl column d) (= (car (send tbl :get-columns-values '("collision-num") d)) 0)))

@@ -12,6 +12,13 @@
       )
     ret))
 
+(defun range-minmax (min max)
+  (let ((ret nil))
+    (dotimes (i (1+ max))
+      (if (>= i min)
+          (setq ret (append ret (list i)))))
+    ret))
+
 (defun arange (from to step)
   (let ((ret nil)
         (current from))

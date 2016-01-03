@@ -11,9 +11,12 @@
            (send msg :type jsk_recognition_msgs::PlotData::*SCATTER*)))
     msg))
 
-(defun multi-plot-data (multi-data &key (legend-font-size 0))
+(defun multi-plot-data (multi-data &key (legend-font-size 0) (min-y 0) (max-y 0) (no-legend nil))
   (let ((data (mapcar #'(lambda (d) (apply #'plot-data d)) multi-data))
         (msg (instance jsk_recognition_msgs::PlotDataArray :init)))
     (send msg :data data)
     (send msg :legend_font_size legend-font-size)
+    (send msg :min_y min-y)
+    (send msg :max_y max-y)
+    (send msg :no_legend no-legend)
     msg))

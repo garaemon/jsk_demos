@@ -90,3 +90,26 @@
                                fulltime (length interpolated-times))))
         (- 1 expected-value))))
   )
+
+(defun merge-ee-zmp-table (ee-table zmp-table)
+  (format t "ee-table:  ~A~%" (send ee-table :data-num))
+  (format t "zmp-table: ~A~%" (send zmp-table :data-num))
+  (when (= (send ee-table :data-num) (send zmp-table :data-num))
+    (let ((tbl (instance table :init '("time" "speed-factor" "e" "e_zmp" "e_ee"))))
+      (send ee-table :sort-by "time")
+      (send zmp-table :sort-by "time")
+      (dotimes (i (length (send ee-table :data)))
+        (let ((ee-data (elt (send ee-table :data) i))
+              (zmp-data (elt (send zmp-table :data) i)))
+          (multiple-value-bind
+           (ee-speed-factor ee-time ee-e) (send ee-table :get-columns-values '("speed-factor" "time" "e") ee-data)
+           (multiple-value-bind
+            (zmp-speed-factor zmp-time zmp-e) (send zmp-table :get-columns-values '("speed-factor" "time" "e") zmp-data)
+            (unless (= ee-speed-factor zmp-speed-factor)
+              (error "speed-factor is not same"))
+            (send tbl :add (list ee-time ee-speed-factor (* ee-e zmp-e) zmp-e ee-e))
+            ))
+          )
+        )
+      tbl)))
+

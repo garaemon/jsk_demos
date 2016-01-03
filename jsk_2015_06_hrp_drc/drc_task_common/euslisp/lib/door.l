@@ -286,6 +286,21 @@
       tbl)
     ))
 
+(defun door-zmp ()
+  (ros::roseus "foobar")
+  (test-door)
+  (let ((avs (send *ik-solver* :solve
+                      :trajectory-resolution 20
+                      :stop 50
+                      :collision-num 10 :debug-view nil)))
+    (let* ((zmp-robot (send *man* :model :zmp))
+           (zmp (instance zmp-evaluator :init zmp-robot)))
+      (send (send zmp :profile :angle-vector-sequence avs :start-angle-vector (send *robot* :reset-manip-pose)
+                  :dt 0.01 :max-speed-factor 10.0)
+            :write "zmp_door.csv")
+      )))
+
+
 ;; (load "package://drc_task_common/euslisp/lib/door.l")
 ;; (test-move-door-model-from-knob-coords)
 ;; (test-door-recognition :jaxon)

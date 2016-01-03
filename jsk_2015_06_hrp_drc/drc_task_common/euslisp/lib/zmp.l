@@ -151,7 +151,7 @@
       (let ((min-value (apply #'min (send self :all-distance-from-edge))))
         ;; min-value = 0 --> unreliable
         ;; min-value = max-distance --> reliable
-        (1- (/ min-value max-distance)))))
+        (/ min-value max-distance))))
   (:evaluate-full ()
     (let ((max-distance (send self :distance-from-edge (float-vector 0 0 0))))
       (let ((min-value (apply #'min (send self :all-distance-from-edge))))
@@ -253,3 +253,7 @@
 
 ;; (load "zmp.l")
 ;; (setq hoge (test-zmp-evaluator))
+
+;; fix zmp
+;; (let ((tbl (instance table :init (send aa :column)))) (dolist (d (send aa :data)) (send tbl :add (list (elt d 0) (elt d 1) (elt d 2) (elt d 3) (+ 1 (elt d 4))))) tbl)
+;; e - 1 -> e
