@@ -36,7 +36,19 @@
     (require "package://hrpsys_ros_bridge_tutorials/euslisp/jaxon_red-interface.l")
     ))
 
+(defun ros::resolve-ros-path* (path)
+  (if (string-left= "package://" path)
+      (ros::resolve-ros-path path)
+    path))
+
+(defun string-left= (a b)
+  "(string-left= hello he) => nil
+   (string-left= he hello) => t
+   (string-left= eh hello) => nil"
+  (string= a (subseq b 0 (length a))))
+
 (defun string-join (prefix strs)
+  "(string-join , '(a b c)) => a, b, c"
   (reduce #'(lambda (a v)
               (concatenate string a prefix v))
           strs)
@@ -47,6 +59,7 @@
   (string-split-impl splitter str nil))
 
 (defun string-split-impl (splitter str result)
+  "recursive function for `string-split'"
   (cond ((string= str "")
          result)
         ((position splitter str)
