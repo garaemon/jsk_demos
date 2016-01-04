@@ -5,10 +5,22 @@ from scipy import signal, interpolate
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+from rospkg import RosPack
+import os
+def resolve_ros_path(path):
+    if path.startswith("package://"):
+        package_name = path.split("/")[2]
+        rest_path = path.split("/")[3:]
+        rp = RosPack()
+        pkg_path = rp.get_path(package_name)
+        return os.path.join(*([pkg_path] + rest_path))
+    else:
+        return path
+
 class QualityTable():
     def __init__(self, name, file_name, epsilon_scale):
         self.name = name
-        self.file_name = file_name
+        self.file_name = resolve_ros_path(file_name)
         self.epsilon_scale = epsilon_scale
         # read value
         # print "Reading", file_name
