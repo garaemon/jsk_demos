@@ -220,7 +220,8 @@
     )
   (:profile 
    (&key (max-trajectory 50) (test-num 10) (stop 50) (max-collision nil))
-   (let ((tbl (instance table :init '("time" "collision-num" "trajectory-num" "success"))))
+   (let ((tbl (instance table :init '("time" "collision-num" "trajectory-num" "success" "q")))
+         (start-coords (send robot :foot-midcoords)))
      (let ((min-trajectory (send trajectory :min-resolution))
            (max-collision (if max-collision max-collision (send col-parameter :max-collision-link-pairs (send self :link-list)))))
        (format t "min-trajectory: ~A~%" min-trajectory)
@@ -236,12 +237,15 @@
                (format t "  trajectory: ~A~%" i)
                (format t "  collision: ~A~%" j)
                (let ((timer (instance mtimer :init)))
+                 (send robot :fix-leg-to-coords start-coords)
                  (send timer :start)
                  (let ((result (send self :solve :trajectory-resolution i
                                      :collision-num j
                                      :stop stop)))
                  (let ((tm (send timer :stop)))
-                   (send tbl :add (list tm j i (if result 1 0)))
+                   (send tbl :add (list tm j i (if result 1 0)
+                                        (* (normalize-value j max-collision 0)
+                                           (normalize-value i max-trajectory min-trajectory))))
                    )))))))
        (send tbl :print))
      tbl))
@@ -427,10 +431,7 @@
 
 ;; (mapcar #'(lambda (n) (send *tbl* :filter-if #'(lambda (tbl colu
 ;; (send *tbl* :filter-if #'(lambda (tbl column d) (= (car (send tbl :get-columns-values '("collision-num") d)) 0)))
-;; modify ik csv
-(defun normalize-value (v max min)
-  (/ (- v min) (float (- max min))))
-  
+;; modify ik csv  
 (defun add-q-to-ik-table (orig-table)
   (let ((min-collision-num (apply #'min (send orig-table :get-column-value "collision-num")))
         (max-collision-num (apply #'max (send orig-table :get-column-value "collision-num")))

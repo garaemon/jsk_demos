@@ -113,3 +113,17 @@
         )
       tbl)))
 
+
+;; normalize zmp_ee csv
+(defun normalize-execution-table (orig-table)
+  (let ((tbl (instance table :init (send orig-table :column))))
+    (let* ((all-q (send orig-table :get-column-value "q"))
+           (min-q (apply #'min all-q))
+           (max-q (apply #'max all-q)))
+      (dolist (d (send orig-table :data))
+        (multiple-value-bind
+         (time speed-factor q e_zmp e_ee)
+         (send orig-table :get-columns-values '("time" "speed-factor" "q" "e_zmp" "e_ee") d)
+         (send tbl :add (list time speed-factor (normalize-value q max-q min-q) e_zmp e_ee))
+         ))
+      tbl)))

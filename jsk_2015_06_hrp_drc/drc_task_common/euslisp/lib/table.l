@@ -163,4 +163,7 @@
     (send tbl :publish-as-plot-data "foo")
     tbl))
 
+(defun normalize-value (v max min)
+  (/ (- v min) (float (- max min))))
+
 ;; (load "table.l")

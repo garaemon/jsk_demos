@@ -241,7 +241,7 @@
                :collision-num 10 :debug-view t)
   )
 
-(defun test-door ()
+(defun test-door (&optional (ik-type :use-torso))
   (setq *man* (instance robot-model-manager :init :jaxon))
   (setq *robot* (send *man* :model :visualization))
   (setq *door* (instance param-door :init 700 60 100 20
@@ -265,7 +265,7 @@
   (setq *ik-solver* (instance ik-solver
                               :init *robot*
                               :rarm
-                              :ik-type :use-torso
+                              :ik-type ik-type
                               :move-target (get (send *robot* :rarm :end-coords) :door-manipulation-move-target)
                               :trajectory *traj*
                               :collision-parameter *col*
