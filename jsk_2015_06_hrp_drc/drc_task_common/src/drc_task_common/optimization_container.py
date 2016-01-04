@@ -24,7 +24,7 @@ class QualityTable():
         self.epsilon_scale = epsilon_scale
         # read value
         # print "Reading", file_name
-        with open(file_name, "r") as f:
+        with open(self.file_name, "r") as f:
             reader = csv.reader(f)
             self.labels = reader.next()
             # self.data["epsilon"] => [0, 0.1, ..., 1.0]
