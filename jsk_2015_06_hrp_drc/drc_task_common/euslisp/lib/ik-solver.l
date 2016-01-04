@@ -427,3 +427,25 @@
 
 ;; (mapcar #'(lambda (n) (send *tbl* :filter-if #'(lambda (tbl colu
 ;; (send *tbl* :filter-if #'(lambda (tbl column d) (= (car (send tbl :get-columns-values '("collision-num") d)) 0)))
+;; modify ik csv
+(defun normalize-value (v max min)
+  (/ (- v min) (float (- max min))))
+  
+(defun add-q-to-ik-table (orig-table)
+  (let ((min-collision-num (apply #'min (send orig-table :get-column-value "collision-num")))
+        (max-collision-num (apply #'max (send orig-table :get-column-value "collision-num")))
+        (min-trajectory-num (apply #'min (send orig-table :get-column-value "trajectory-num")))
+        (max-trajectory-num (apply #'max (send orig-table :get-column-value "trajectory-num"))))
+    (let ((tbl (instance table :init (append (send orig-table :column) (list "q")))))
+      (dolist (d (send orig-table :data))
+        (multiple-value-bind
+         (time collision trajectory success)
+         (send orig-table :get-columns-values
+               '("time" "collision-num" "trajectory-num" "success")
+               d)
+         (let ((q (* (normalize-value collision max-collision-num min-collision-num)
+                     (normalize-value trajectory max-trajectory-num min-trajectory-num))))
+         (send tbl :add (list time collision trajectory success q))
+        )
+      ))
+      tbl)))
