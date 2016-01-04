@@ -449,3 +449,19 @@
         )
       ))
       tbl)))
+
+(defun filter-table-as-monotonically-increasing (tbl x-label y-label)
+  (send tbl :sort-by x-label)
+  (let ((new-table (instance table :init (send tbl :column)))
+        (prev-y-value 0))
+    (dolist (d (send tbl :data))
+      (multiple-value-bind
+       (y-value) (send tbl :get-columns-values (list y-label) d)
+       (if (> y-value prev-y-value)
+           (progn
+             (send new-table :add d)
+             (setq prev-y-value y-value)
+             )
+           )))
+    (format t "data is decreased ~A => ~A~%" (send tbl :data-num) (send new-table :data-num))
+    new-table))
