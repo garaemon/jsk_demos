@@ -30,7 +30,7 @@ def publish_text(event):
             if not g_cloud_msg or not g_resolution_msg:
                 return
             text_interface.publish( """PointCloud Resolution: {0}
-Number of Points: {1}""".format(g_resolution_msg.data, g_cloud_msg.width))
+Number of Points: {1}""".format(g_resolution_msg.data, g_cloud_msg.width * g_cloud_msg.height))
 
 if __name__ == "__main__":
     rospy.init_node("octree_info")
