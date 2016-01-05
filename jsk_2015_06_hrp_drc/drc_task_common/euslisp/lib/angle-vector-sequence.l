@@ -200,7 +200,7 @@
      (format t "avs: ~A~%" angle-vectors)
      (print `(send *ri* :angle-vector ,angle-vectors ,ts))
      (send ri :angle-vector-sequence angle-vectors (mapcar #'(lambda (x) (* 1000 x)) ts))
-     ts))
+     (apply #'+ ts)))
   (:send-angle-vector-test 
    (ri time index)
    (send ri :angle-vector (send self :at index) time))
@@ -266,4 +266,3 @@
   (:interpolated-angle-vectors () interpolated-angle-vectors)
   (:interpolated-times () interpolated-times)
   )
-
