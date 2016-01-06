@@ -71,9 +71,9 @@
                             )
                            (make-cascoords 
                             :coords
-                            (send (send (car (last coords-list)) :copy-worldcoords)
-                                  :translate (float-vector -350 150 -100)))
-                           )
+                            (send (send (car coords-list) :copy-worldcoords)
+                                  :translate (float-vector -250 0 0))
+                           ))
                           )
                   :parent-object valve-model)))))
 
