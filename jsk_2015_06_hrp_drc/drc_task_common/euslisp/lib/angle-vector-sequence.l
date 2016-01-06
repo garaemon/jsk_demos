@@ -4,7 +4,8 @@
 (defclass angle-vector-sequence
   :super propertied-object
   :slots (angle-vectors interpolated-angle-vectors interpolated-times
-                        sleep-timings))
+                        sleep-timings
+                        grasp-timings))
 
 ;; sleep-timings
 ;;   = ((timing duration) ...)
@@ -23,6 +24,13 @@
            (cond ((eq (car arg) :sleep)
                   (setq sleep-timings (append sleep-timings (list (length angle-vectors)
                                                                   (cadr arg))))
+                  )
+                 ((eq (car arg) :start-grasp)
+                  (setq grasp-timings (append grasp-timings (list
+                                                             (list (length angle-vectors) :start-grasp)))))
+                 ((eq (car arg) :stop-grasp)
+                  (setq grasp-timings (append grasp-timings (list
+                                                             (list (length angle-vectors) :stop-grasp))))
                   )
                  ))
           )
@@ -216,11 +224,33 @@
      (format t "ts: ~A~%" ts)
      (format t "avs: ~A~%" angle-vectors)
      (print `(send *ri* :angle-vector ,angle-vectors ,ts))
-     (cond ((null sleep-timings)
+     (cond ((and (null sleep-timings) (null grasp-timings))
             (send ri :angle-vector-sequence angle-vectors (mapcar #'(lambda (x) (* 1000 x)) ts)))
            (t
-            (error "not supported yet")
-            ))
+            ;; we assume sleep-timings are already solved
+              ;; assume the length of angle-vectors is 10.
+              ;; indices is (3 5), we need to split angle-vectors into 3 groups:
+              ;; (0, 1, 2), (3, 4, 5) (6 7 8 9)
+            (let ((avs-and-times (mapcar #'(lambda (av tm) (list av tm))
+                                         angle-vectors ts))
+                  (group-indices (split-groups (mapcar #'car grasp-timings) (length avs-and-times))))
+              (let ((splitted-avs-and-times
+                     (mapcar #'(lambda (indices)
+                                 (mapcar #'(lambda (i)
+                                             (elt avs-and-times i))
+                                         indices))
+                             group-indices)))
+                (mapcar #'(lambda (avs-and-times grasp-command-with-nil)
+                            (send ri :angle-vector-sequence
+                                  (mapcar #'car avs-and-times)
+                                  (mapcar #'cadr avs-and-times))
+                            (cond ((eq (cadr grasp-command-with-nil) :start-grasp)
+                                   (send ri :wait-interpolation)
+                                   (send ri :start-grasp))
+                                  ((eq (cadr grasp-command-with-nil) :stop-grasp)
+                                   (send ri :wait-interpolation)
+                                   (send ri :stop-grasp))))
+                        splitted-avs-and-times (append grasp-timings (list nil)))))))
      (apply #'+ ts)))
   (:send-angle-vector-test 
    (ri time index)
@@ -287,3 +317,16 @@
   (:interpolated-angle-vectors () interpolated-angle-vectors)
   (:interpolated-times () interpolated-times)
   )
+
+
+(defun split-groups (splitters length &optional (before-index 0))
+  ;; splitters := (3 5), length := 10
+  ;;  -> (0 1 2) (3 4 5) (6 7 8 9)
+  ;; splitters should be sorted.
+  (cond ((null splitters)
+         (list (range-minmax before-index (1- length))))
+        (t
+         (append
+          (list (range-minmax before-index (1- (car splitters))))
+          (split-groups (cdr splitters) length (car splitters)))
+         )))

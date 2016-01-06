@@ -44,7 +44,8 @@
 
 (defclass manipulation-trajectory
   :super propertied-object
-  :slots (min-via-coords-points via-coords parent-object))
+  :slots (min-via-coords-points via-coords parent-object grasp-commands))
+;; grasp-commands := ((index :start-grasp) ...)
 
 (defmethod manipulation-trajectory
   (:init (&key ((:min-via-coords-points amin-via-coords))
@@ -53,12 +54,22 @@
     (if (null amin-via-coords)
         (setq amin-via-coords (range (length avia-coords))))
     (setq min-via-coords-points amin-via-coords)
-    (setq via-coords avia-coords)
+    (setq via-coords (remove-if #'(lambda (x)
+                                    (or (eq x :start-grasp)
+                                        (eq x :stop-grasp)))
+                                avia-coords))
+    (let ((i 0))
+      (dolist (c avia-coords)
+        (if (or (eq c :start-grasp)
+                (eq c :stop-grasp))
+            (setq grasp-commands (append grasp-commands (list i c)))
+          (incf i))))
     (setq parent-object aparent-object)
     (dolist (c via-coords)
       (send parent-object :assoc c))
     (setf (get self :line-width) 1.0)
     self)
+  (:grasp-commands () (copy-object grasp-commands))
   (:min-via-coords-points ()
     min-via-coords-points)
   (:min-resolution ()

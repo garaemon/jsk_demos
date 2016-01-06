@@ -64,6 +64,7 @@
                           collision-num
                           stop
                           debug-view
+                          grasp-commands
                           (ik-type (send self :ik-type)))
     (when debug-view                    ;change link-list color
       (mapcar #'(lambda (c)
@@ -89,7 +90,12 @@
                         :root-link-virtual-joint-weight (float-vector 0.1 0.1 0 0 0 0.1)
                         :debug-view (if debug-view :no-message nil))))
           (if av (send avs :add av)
-            (return-from :solve-normal-ik nil))))
+            (return-from :solve-normal-ik nil))
+          (when (and grasp-commands
+                     (= (caar grasp-commands) (length av)))
+            (send avs :add (car grasp-commands))
+            (setq grasp-commands (cdr grasp-commands)))
+          ))
       avs))
   (:solve-fullbody-ik (&key via-coords
                             collision-num
@@ -197,6 +203,7 @@
                        (eq ik-type :use-torso))
                    (send self :solve-normal-ik :via-coords via-coords
                          :collision-num collision-num
+                         :grasp-commands (send trajectory :grasp-commands)
                          :stop stop
                          :debug-view debug-view))
                   ((eq ik-type :fullbody)
