@@ -3,13 +3,30 @@
 
 (defclass angle-vector-sequence
   :super propertied-object
-  :slots (angle-vectors interpolated-angle-vectors interpolated-times))
+  :slots (angle-vectors interpolated-angle-vectors interpolated-times
+                        sleep-timings))
+
+;; sleep-timings
+;;   = ((timing duration) ...)
 
 (defmethod angle-vector-sequence
   (:init ()
     )
-  (:add (av)
-    (setq angle-vectors (append angle-vectors (list av))))
+  (:add (arg)
+    ;; arg := #f(0 0 0 ...)
+    ;;   or   (:sleep 1)
+    ;;   or   (:start-grasp :rarm)
+    ;;   or   (:stop-grasp :rarm)
+    (cond ((equal (class arg) (class (float-vector)))
+           (setq angle-vectors (append angle-vectors (list arg))))
+          ((equal (class arg) (class (list 1))) ;list
+           (cond ((eq (car arg) :sleep)
+                  (setq sleep-timings (append sleep-timings (list (length angle-vectors)
+                                                                  (cadr arg))))
+                  )
+                 ))
+          )
+    )
   (:angle-vectors () angle-vectors)
   (:filter-look-at-hand (robot arm)
     (dotimes (i (length angle-vectors))
@@ -199,7 +216,11 @@
      (format t "ts: ~A~%" ts)
      (format t "avs: ~A~%" angle-vectors)
      (print `(send *ri* :angle-vector ,angle-vectors ,ts))
-     (send ri :angle-vector-sequence angle-vectors (mapcar #'(lambda (x) (* 1000 x)) ts))
+     (cond ((null sleep-timings)
+            (send ri :angle-vector-sequence angle-vectors (mapcar #'(lambda (x) (* 1000 x)) ts)))
+           (t
+            (error "not supported yet")
+            ))
      (apply #'+ ts)))
   (:send-angle-vector-test 
    (ri time index)

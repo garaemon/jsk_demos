@@ -85,11 +85,11 @@
        (progn
          (let ((tm (send *avs* :send-angle-vector-sequence-test *ri* *robot* speed-factor)))
            (ros::ros-info "execution: ~A" tm))
-         (send *ri* :wait-interpolation t))
+         (send *ri* :wait-interpolation))
        ;;nil
      (ros::ros-warn "Failed to solve ik")))
-  ;;(send *ri* :angle-vector (send *robot* :reset-manip-pose) 5000)
-  ;;(send *ri* :wait-interpolation t)
+  (send *ri* :angle-vector (send *robot* :reset-manip-pose) 5000)
+  (send *ri* :wait-interpolation)
   )
 
 ;; (load "experiment.l")
