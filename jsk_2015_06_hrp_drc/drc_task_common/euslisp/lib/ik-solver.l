@@ -236,7 +236,9 @@
        (format t "max-collision: ~A~%" max-collision)
        (format t "test-num: ~A~%" test-num)
        (dotimes (j max-collision)
-       (dotimes (i max-trajectory)
+         (dotimes (i max-trajectory)
+           (when (and (= (mod j 2) 0)
+                      (= (mod i 2) 0))
          (when (> i min-trajectory)
              (dotimes (k test-num)
                ;; record all the data
@@ -249,11 +251,14 @@
                  (let ((result (send self :solve :trajectory-resolution i
                                      :collision-num j
                                      :stop stop)))
-                 (let ((tm (send timer :stop)))
-                   (send tbl :add (list tm j i (if result 1 0)
-                                        (* (normalize-value j max-collision 0)
-                                           (normalize-value i max-trajectory min-trajectory))))
-                   )))))))
+                   (unless result
+                     (warn "failed to solve ik, skip")
+                     (return-from nil nil))
+                   (let ((tm (send timer :stop)))
+                     (send tbl :add (list tm j i (if result 1 0)
+                                          (* (normalize-value j max-collision 0)
+                                             (normalize-value i max-trajectory min-trajectory))))
+                     ))))))))
        (send tbl :print))
      tbl))
   )

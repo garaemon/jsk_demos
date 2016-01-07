@@ -106,6 +106,15 @@
           (format f "~A~%" (string-join "," (mapcar #'string d))))
         )
       self))
+  (:merge (another)
+    "merge two tables"
+    (if (not (equal (send self :column) (send another :column)))
+        (error "not mergable: ~A with ~A" (send self :column) (send another :column))
+      (progn
+        (dolist (d (send another :data))
+          (send self :add d))
+        ))
+    )
   (:print ()
     ;; print column
     (format t "~A data~%" (length data))
