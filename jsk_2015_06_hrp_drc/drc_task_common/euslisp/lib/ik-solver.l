@@ -398,6 +398,9 @@
 ;; (load "package://drc_task_common/euslisp/lib/ik-solver.l")
 ;; (send (ik-csv-average "package://drc_task_common/profile_data/motion/jaxon_door_ik.csv") :write "package://drc_task_common/profile_data/motion/jaxon_door_ik_average.csv")
 ;; (send (ik-csv-average "package://drc_task_common/profile_data/motion/jaxon_valve_ik.csv") :write "package://drc_task_common/profile_data/motion/jaxon_valve_ik_average.csv")
+;; (send (ik-csv-average "package://drc_task_common/profile_data/motion/jaxon_valve_ik_stand2.csv") :write "package://drc_task_common/profile_data/motion/jaxon_valve_ik_stand2_average.csv")
+;; (send (ik-csv-average "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2.csv") :write "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2_average.csv")
+
 
 ;; plot ik table codes
 ;; (setq *tbl* (load-table "package://drc_task_common/profile_data/motion/jaxon_valve_ik_average.csv"))
@@ -478,3 +481,4 @@
            )))
     (format t "data is decreased ~A => ~A~%" (send tbl :data-num) (send new-table :data-num))
     new-table))
+
