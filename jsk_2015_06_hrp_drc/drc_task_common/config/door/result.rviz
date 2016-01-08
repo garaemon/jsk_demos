@@ -398,7 +398,7 @@ Visualization Manager:
       Color: 25; 255; 0
       Enabled: false
       Name: PolygonArray
-      Topic: /valve_detection/plane_concatenator/output/polygons
+      Topic: /door_detection/plane_concatenator/output/polygons
       Value: false
       coloring: Auto
       normal length: 0.1
@@ -409,29 +409,29 @@ Visualization Manager:
       Color: 85; 255; 255
       Enabled: false
       Name: Original Polygon Array
-      Topic: /valve_detection/region_growing_multiple_plane_segmentation/output/polygons
+      Topic: /door_detection/region_growing_multiple_plane_segmentation/output/polygons
       Value: false
       coloring: Flat color
       normal length: 0.1
       only border: true
       show normal: false
     - Class: jsk_rviz_plugin/BoundingBoxArray
-      Enabled: false
+      Enabled: true
       Name: BoundingBoxArray
-      Topic: /valve_detection/euclidean_clustering_decomposer/boxes
-      Value: false
+      Topic: /door_detection/door_handle_bbox_extractor/output_box
+      Value: true
       alpha: 0.8
       color: 25; 255; 0
       coloring: Flat color
       line width: 0.005
-      only edge: true
+      only edge: false
       show coords: true
     - Alpha: 1
       Class: jsk_rviz_plugin/PolygonArray
       Color: 255; 85; 127
       Enabled: true
       Name: DoorPlane
-      Topic: /valve_detection/extract_top_polygon_likelihood/output
+      Topic: /door_detection/extract_top_polygon_likelihood/output
       Value: true
       coloring: Flat color
       normal length: 0.1
@@ -476,7 +476,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.02
       Style: Flat Squares
-      Topic: /valve_detection/icp_registration/output
+      Topic: /door_detection/icp_registration/output
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -485,13 +485,13 @@ Visualization Manager:
       Marker Topic: /trajectory_marker
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: jsk_rviz_plugin/TorusArray
       Enabled: false
       Name: TorusArray
-      Topic: /valve_detection/valve_rejector/output_array
+      Topic: /door_detection/door_rejector/output_array
       Value: false
       alpha: 1
       auto color: false
@@ -524,7 +524,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.005
       Style: Flat Squares
-      Topic: /valve_detection/euclidean_clustering_decomposer/debug_output
+      Topic: /door_detection/euclidean_clustering_decomposer/debug_output
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -549,7 +549,7 @@ Visualization Manager:
     - Class: jsk_rviz_plugin/TorusArray
       Enabled: true
       Name: TorusArray
-      Topic: /valve_detection/valve_rejector/output_array
+      Topic: /door_detection/door_rejector/output_array
       Value: true
       alpha: 0.5
       auto color: false
@@ -569,7 +569,7 @@ Visualization Manager:
       Shaft Length: 1
       Shaft Radius: 0.05
       Shape: Axes
-      Topic: /valve_detection/torus_finder/output/pose
+      Topic: /door_detection/torus_finder/output/pose
       Value: true
     - Alpha: 1
       Axes Length: 0.1
@@ -583,7 +583,7 @@ Visualization Manager:
       Shaft Length: 1
       Shaft Radius: 0.05
       Shape: Axes
-      Topic: /valve_detection/icp_registration/output_pose
+      Topic: /door_detection/door_handle
       Value: true
     - Class: rviz/Camera
       Enabled: false
@@ -617,7 +617,7 @@ Visualization Manager:
       Name: OverlayText
       Overtake Color Properties: false
       Overtake Position Properties: false
-      Topic: /valve_detection/scan_time_info/text
+      Topic: /door_detection/scan_time_info/text
       Value: true
       font: DejaVu Sans Mono
       height: 128
@@ -635,7 +635,7 @@ Visualization Manager:
       Name: OverlayText
       Overtake Color Properties: false
       Overtake Position Properties: false
-      Topic: /valve_detection/plane_segmentation_info/text
+      Topic: /door_detection/plane_segmentation_info/text
       Value: true
       font: DejaVu Sans Mono
       height: 128
@@ -653,7 +653,7 @@ Visualization Manager:
       Name: OverlayText
       Overtake Color Properties: false
       Overtake Position Properties: false
-      Topic: /valve_detection/torus_finder_info/text
+      Topic: /door_detection/torus_finder_info/text
       Value: true
       font: DejaVu Sans Mono
       height: 128
@@ -671,7 +671,7 @@ Visualization Manager:
       Name: OverlayText
       Overtake Color Properties: false
       Overtake Position Properties: false
-      Topic: /valve_detection/icp_info/text
+      Topic: /door_detection/icp_info/text
       Value: true
       font: DejaVu Sans Mono
       height: 128
@@ -689,7 +689,7 @@ Visualization Manager:
       Name: OverlayText
       Overtake Color Properties: false
       Overtake Position Properties: false
-      Topic: /valve_detection/perception_info/text
+      Topic: /door_detection/perception_info/text
       Value: true
       font: DejaVu Sans Mono
       height: 128
@@ -725,20 +725,20 @@ Visualization Manager:
     Current:
       Class: rviz_animated_view_controller/Animated
       Control Mode: Orbit
-      Distance: 2.5004
+      Distance: 0.83717
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Eye:
-        X: -0.66101
-        Y: 0.797883
-        Z: 2.32953
+        X: 0.432748
+        Y: -0.787576
+        Z: 1.10706
       Focus:
-        X: 0.128295
-        Y: -0.961819
-        Z: 0.738157
+        X: 0.768868
+        Y: -0.0915068
+        Z: 0.785557
       Maintain Vertical Axis: true
       Mouse Enabled: true
       Name: Current View
@@ -771,5 +771,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1278
-  X: 3766
+  X: 3826
   Y: 732

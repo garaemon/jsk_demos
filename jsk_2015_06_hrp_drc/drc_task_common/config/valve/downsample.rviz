@@ -514,20 +514,20 @@ Visualization Manager:
     Current:
       Class: rviz_animated_view_controller/Animated
       Control Mode: Orbit
-      Distance: 3.6751
+      Distance: 2.48813
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Eye:
-        X: -0.327015
-        Y: -2.28948
-        Z: 3.09728
+        X: -0.661134
+        Y: 0.474271
+        Z: 1.91835
       Focus:
-        X: 0.571836
-        Y: 0.455746
-        Z: 0.825235
+        X: 0.178706
+        Y: -1.43969
+        Z: 0.568463
       Maintain Vertical Axis: true
       Mouse Enabled: true
       Name: Current View

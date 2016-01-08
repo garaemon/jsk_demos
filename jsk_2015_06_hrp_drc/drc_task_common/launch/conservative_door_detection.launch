@@ -1,10 +1,30 @@
 <launch>
   <arg name="INTERACTIVE" default="false" />
   <arg name="INPUT_CLOUD" default="/full_cloud2" />
+  <arg name="RESOLUTION" default="0.01" />
   <!-- Prepare pointcloud  -->
+  <node pkg="rviz" type="rviz" name="rviz_input"
+        launch-prefix="glc-capture -i --disable-audio"
+        args="-d $(find drc_task_common)/config/door/input.rviz"/>
+  <node pkg="rviz" type="rviz" name="rviz_recog"
+        launch-prefix="glc-capture -i --disable-audio"
+        args="-d $(find drc_task_common)/config/door/recog.rviz"/>
+  <node pkg="rviz" type="rviz" name="rviz_result"
+        launch-prefix="glc-capture -i --disable-audio"
+        args="-d $(find drc_task_common)/config/door/result.rviz"/>
+  <node pkg="rviz" type="rviz" name="rviz_downsample"
+        launch-prefix="glc-capture -i --disable-audio"
+        args="-d $(find drc_task_common)/config/door/downsample.rviz"/>
+
   <group ns="door_detection">
-    <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="odom_laser">
+    <node pkg="jsk_pcl_ros" type="octree_voxel_grid" name="octree_voxel_grid">
       <remap from="~input" to="$(arg INPUT_CLOUD)" />
+      <rosparam subst_value="true">
+        resolution: $(arg RESOLUTION)
+      </rosparam>
+    </node>
+    <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="odom_laser">
+      <remap from="~input" to="octree_voxel_grid/output" />
       <rosparam>
         target_frame_id: ground
       </rosparam>
@@ -22,7 +42,7 @@
         k_search: 50
       </rosparam>
     </node>
-    <node pkg="jsk_pcl_ros" type="normal_direction_filter" name="normal_direction_filter">
+    <node pkg="jsk_pcl_ros" type="normal_direction_filter" name="normal_direction_filter" if="false">
       <remap from="~input" to="normal_estimation/output_with_xyz" />
       <remap from="~input_imu" to="/imu" />
       <rosparam>
@@ -32,31 +52,31 @@
         eps_angle: 0.5
       </rosparam>
     </node>
-    <node pkg="nodelet" type="nodelet" name="normal_direction_filter_points" args="standalone pcl/ExtractIndices">
+    <node pkg="nodelet" type="nodelet" name="normal_direction_filter_points" args="standalone pcl/ExtractIndices" if="false">
       <remap from="~input" to="normal_estimation/output_with_xyz" />
       <remap from="~indices" to="normal_direction_filter/output" />
     </node>
     <node pkg="jsk_pcl_ros" type="tf_transform_cloud" name="normal_direction_filter_points_camera">
-      <remap from="~input" to="normal_direction_filter_points/output"/>
+      <remap from="~input" to="normal_estimation/output_with_xyz"/>
       <rosparam>
         target_frame_id: left_camera_optical_frame
       </rosparam>
     </node>
     <node pkg="jsk_pcl_ros" type="region_growing_multiple_plane_segmentation" name="region_growing_multiple_plane_segmentation">
-      <remap from="~input" to="normal_direction_filter_points/output" />
-      <remap from="~input_normal" to="normal_direction_filter_points/output" />
+      <remap from="~input" to="normal_estimation/output_with_xyz" />
+      <remap from="~input_normal" to="normal_estimation/output_with_xyz" />
       <rosparam>
         max_area: 5.0
       </rosparam>
     </node>
     <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer"
           name="region_growing_result_decomposer">
-      <remap from="~input" to="normal_direction_filter_points/output" />
+      <remap from="~input" to="normal_estimation/output_with_xyz" />
       <remap from="~target" to="region_growing_multiple_plane_segmentation/output/inliers"/>
     </node>
 
     <node pkg="jsk_pcl_ros" type="plane_concatenator" name="plane_concatenator" output="screen">
-      <remap from="~input" to="normal_direction_filter_points/output" />
+      <remap from="~input" to="normal_estimation/output_with_xyz" />
       <remap from="~input/indices" to="region_growing_multiple_plane_segmentation/output/inliers" />
       <remap from="~input/polygons" to="region_growing_multiple_plane_segmentation/output/polygons" />
       <remap from="~input/coefficients" to="region_growing_multiple_plane_segmentation/output/coefficients" />
@@ -74,7 +94,7 @@
     </node>
 
     <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer" name="cluster_point_indices_decomposer">
-      <remap from="~input" to="normal_direction_filter_points/output" />
+      <remap from="~input" to="normal_estimation/output_with_xyz" />
       <remap from="~target" to="region_growing_multiple_plane_segmentation/output/clustering_result" />
     </node>
     <node pkg="jsk_perception" type="hsv_decomposer" name="hsv_decomposer">
@@ -99,6 +119,9 @@
     <node pkg="jsk_pcl_ros" type="extract_top_polygon_likelihood.py" name="extract_top_polygon_likelihood">
       <remap from="~input" to="polygon_array_color_likelihood/output" />
       <remap from="~input/coefficients" to="plane_concatenator_transformed/output_coefficients" />
+      <rosparam>
+        min_likelihood: 0.5
+      </rosparam>
     </node>
     <node pkg="image_view" type="image_view" name="polygon_array_color_histogram_debug_view">
       <remap to="polygon_array_color_histogram/debug/polygon_image" from="image" />
@@ -119,7 +142,7 @@
       <remap from="~input" to="multi_plane_extraction/output" />
       <rosparam>
         tolerance: 0.05
-        min_size: 10
+        min_size: 5
       </rosparam>
     </node>
     <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer" name="euclidean_clustering_decomposer">
@@ -162,8 +185,45 @@
         frame_id: ground
       </rosparam>
     </node>
+    <node pkg="drc_task_common" type="octree_info.py" name="octree_info">
+      <remap from="~cloud" to="octree_voxel_grid/output" />
+      <remap from="~resolution" to="octree_voxel_grid/output_resolution" />
+      <rosparam>
+        text_size: 24
+      </rosparam>
+    </node>
+    <node pkg="drc_task_common" type="scan_time_info.py" name="scan_time_info">
+      <remap from="~range" to="/tilt_laser_listener/output" />
+      <rosparam>
+        text_size: 24
+      </rosparam>
+    </node>
+    <node pkg="jsk_rviz_plugins" type="float32_to_overlay_text.py" name="plane_segmentation_info">
+      <remap from="~input" to="region_growing_multiple_plane_segmentation/output/latest_time" />
+      <rosparam>
+        format: "Plane segmentation took {0} sec"
+        text_size: 24
+        top: 40
+      </rosparam>
+    </node>
+    <node pkg="jsk_rviz_plugins" type="float32_to_overlay_text.py" name="perception_info">
+      <rosparam>
+        multi_topics: [region_growing_multiple_plane_segmentation/output/latest_time, scan_time_info/time]
+        format: "Perception took {0} sec"
+        text_size: 24
+        top: 80
+      </rosparam>
+    </node>
+
+
     <node pkg="jsk_topic_tools" type="static_transform_pose_stamped"
           name="drc_box_maker_to_handle"
           args="0.05 0.0 0 -1.57 -1.57 0 door_handle_bbox_extractor/output door_handle" />
   </group>
+  <node pkg="jsk_rviz_plugins" type="rosconsole_overlay_text.py" name="rosconsole_overlay_text">
+    <rosparam>
+      nodes_regexp: ^/door_detection
+    </rosparam>
+  </node>
+
 </launch>
