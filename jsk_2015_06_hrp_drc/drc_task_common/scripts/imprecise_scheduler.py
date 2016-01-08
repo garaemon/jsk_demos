@@ -53,7 +53,7 @@ elif args.type == "door_inplace":
     initial_collision = 10
     initial_traj = 20
     initial_speed_factor = 5
-    p_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", args.p0)
+    p_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/door_detection.csv", args.p0)
     m_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_average_q_mono.csv", args.m0)
     m_all_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_average_q.csv", args.m0)
     e_table = QualityTable("q_{e0}", "package://drc_task_common/profile_data/execution/door/jaxon_red_door_zmp_ee_normalized.csv", 1)

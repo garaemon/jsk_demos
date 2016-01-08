@@ -14,6 +14,7 @@
   (let* ((origin->door (send door :copy-worldcoords))
          (origin->knob (send (send door :handle :knob-handle) :copy-worldcoords))
          (door->knob (send origin->door :transformation origin->knob))
+         ;;(door->knob* (send (send (send door->knob :copy-worldcoords) :rotate -pi/2 :x) :rotate 0 :z))
          (door->knob* (send (send (send door->knob :copy-worldcoords) :rotate -pi/2 :x) :rotate 0 :z))
          (knob*->door (send door->knob* :inverse-transformation))
          (origin->knob* (send (send origin->door :copy-worldcoords) :transform door->knob*))
@@ -36,12 +37,17 @@
   (let ((origin->ground (send *tf-listener* :lookup-transform "odom" "ground" (ros::time 0)))
         (origin->msg 
          (send *tf-listener* :lookup-transform "odom" (send msg :header :frame_id) 
-               (send msg :header :stamp))))
+               ;;(send msg :header :stamp)
+               (ros::time 0)
+               )))
     (send *robot* :fix-leg-to-coords origin->ground)
     ;; (send *robot* :fix-leg-to-coords (make-coords :pos (z0 (send origin->ground :worldpos))
     ;;                                               :rot (send origin->ground :worldrot)))
     (when origin->msg
+      (setq *perception-succeeded* t)
+      (setq *perception-succeeded-time* (send msg :header :stamp))
       (send *door* :newcoords (make-coords))
+      (send *robot* :fix-leg-to-coords origin->ground)
       (let ((traj (door-manipulation-trajectory *door* :robot :jaxon)))
         (setq *traj* traj)
         (let ((origin->recog (send origin->msg :transform (ros::tf-pose-stamped->coords msg))))
@@ -53,8 +59,7 @@
         ))
     )
   ;; test ik-solver
-  (setup-move-targets *robot*)
-  
+  ;;(setup-move-targets *robot*)
   (send *irtviewer* :draw-objects)
   (x::window-main-one))
 
@@ -135,47 +140,50 @@
               (cond ((eq robot :hrp2)
                      (list (make-coords-relative knob-coords :pos (float-vector -100 200 -100) :rpy (float-vector 0 0 0))
                            (make-coords-relative knob-coords :pos (float-vector 0 50 -50) :rpy (float-vector 0 0 0))
-                           (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0))
+                           (make-coords-relative knob-coords :pos (float-vector -30 -25 -50) :rpy (float-vector 0 0 0))
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle -35)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -30 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle -70)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0))
+                             (make-coords-relative knob-coords :pos (float-vector -30 -25 -50) :rpy (float-vector 0 0 0))
                              )
                            (progn
                              (send (send door-tmp :joint :door-hinge-joint) :joint-angle -10)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -30 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-hinge-joint) :joint-angle -20)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -30 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle -35)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -30 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle 0)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
-                           (make-coords-relative knob-coords :pos (float-vector 0 75 50) :rpy (float-vector 0 0 0))
-                           (make-coords-relative knob-coords :pos (float-vector 0 150 50):rpy (float-vector 0 0 0))
+                             (make-coords-relative knob-coords :pos (float-vector -30 -25 -50) :rpy (float-vector 0 0 0)))
+                           
+                           (make-coords-relative knob-coords :pos (float-vector -30 75 50) :rpy (float-vector 0 0 0))
+                           (make-coords-relative knob-coords :pos (float-vector -30 150 50):rpy (float-vector 0 0 0))
                            (make-coords-relative knob-coords :pos (float-vector -100 150 50) :rpy (float-vector 0 0 0))))
                     ((eq robot :jaxon)
                      (list (make-coords-relative knob-coords :pos (float-vector -200 -25 -50) :rpy (float-vector 0 0 0))
-                           (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0))
+                           :start-grasp
+                           (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0))
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle -35)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-hinge-joint) :joint-angle -10)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-hinge-joint) :joint-angle -20)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle -35)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
+                           :stop-grasp
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle 0)
-                             (make-coords-relative knob-coords :pos (float-vector 0 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
                            ))
                     )
               :parent-object (send door-model :handle :knob-handle))))
@@ -223,7 +231,14 @@
   )
 
 (defun test-door-motion ()
-  (setq *col* (instance collision-link-parameter :init *robot*))
+  (unless (boundp '*col*)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send *robot* :reset-manip-pose)
+    (send *col* :init-distance-table))
+  (let ((foot-midcoords (send *robot* :foot-midcoords)))
+    (send *robot* :reset-manip-pose)
+    (robot-move-height *robot* 50)
+    (send *robot* :fix-leg-to-coords foot-midcoords))
   (setq *ik-solver* (instance ik-solver
                               :init *robot*
                               :rarm
@@ -231,18 +246,14 @@
                               :move-target (get (send *robot* :rarm :end-coords) :door-manipulation-move-target)
                               :trajectory *traj*
                               :collision-parameter *col*))
-  (let ((foot-midcoords (send *robot* :foot-midcoords)))
-    (send *robot* :reset-manip-pose)
-    (robot-move-height *robot* 50)
-    (send *robot* :fix-leg-to-coords foot-midcoords))
-  (send *col* :init-distance-table)
   (send *ik-solver* :solve
                :trajectory-resolution 10
                :collision-num 10 :debug-view t)
   )
 
 (defun test-door (&optional (ik-type :use-torso))
-  (setq *man* (instance robot-model-manager :init :jaxon))
+  (unless (boundp '*man*)
+    (setq *man* (instance robot-model-manager :init :jaxon)))
   (setq *robot* (send *man* :model :visualization))
   (setq *door* (instance param-door :init 700 60 100 20
                          (float-vector 0 -640 950)

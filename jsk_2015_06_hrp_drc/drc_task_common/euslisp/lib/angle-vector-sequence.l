@@ -242,17 +242,28 @@
                                              (elt avs-and-times i))
                                          indices))
                              group-indices)))
-                (mapcar #'(lambda (avs-and-times grasp-command-with-nil)
-                            (send ri :angle-vector-sequence
-                                  (mapcar #'car avs-and-times)
-                                  (mapcar #'(lambda (x) (* 1000 x)) (mapcar #'cadr avs-and-times)))
+                (mapcar #'(lambda (avs-and-times grasp-command-with-nil i)
+                            (if (= i 0)
+                                (send ri :angle-vector-sequence
+                                      (mapcar #'car avs-and-times)
+                                      (mapcar #'(lambda (x) (* 1000 x)) (mapcar #'cadr avs-and-times)))
+                              ;; 最初の一個だけ2倍の時間をかけるようにする
+                              (send ri :angle-vector-sequence
+                                    (mapcar #'car avs-and-times)
+                                    (mapcar #'(lambda (tm j)
+                                                (if (= j 0)
+                                                    (* 2 tm)
+                                                  tm))
+                                            (mapcar #'(lambda (x) (* 1000 x)) (mapcar #'cadr avs-and-times))
+                                            (range (length (mapcar #'cadr avs-and-times))))))
                             (cond ((eq (cadr grasp-command-with-nil) :start-grasp)
                                    (send ri :wait-interpolation)
                                    (send ri :start-grasp))
                                   ((eq (cadr grasp-command-with-nil) :stop-grasp)
                                    (send ri :wait-interpolation)
-                                   (send ri :stop-grasp))))
-                        splitted-avs-and-times (append grasp-timings (list nil)))))))
+                                   (send ri :stop-grasp :rarm :wait nil :gain 20))))
+                        splitted-avs-and-times (append grasp-timings (list nil))
+                        (range (length splitted-avs-and-times)))))))
      (apply #'+ ts)))
   (:send-angle-vector-test 
    (ri time index)
@@ -345,4 +356,3 @@
   (send *avs* :add '(:stop-grasp))
   (send *avs* :add (send *robot* :reset-pose))
   (send *avs* :send-angle-vector-sequence-test *ri* *robot* 5.0))
-
