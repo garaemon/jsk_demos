@@ -58,11 +58,13 @@
                             :coords
                             (send (send (car coords-list) :copy-worldcoords)
                                   :translate (float-vector -250 0 0))))
+                          ;;(list :start-grasp)
                           (mapcar #'(lambda (c i)
                                       (send c :rotate (* (/ (float i) (length coords-list))  (deg2rad -15)) :z)
                                       (make-cascoords :coords (send (send c :copy-worldcoords)
                                                                     :translate (float-vector -100 0 0))))
                                   coords-list (range (length coords-list)))
+                          ;;(list :stop-grasp)
                           (list
                            (make-cascoords 
                             :coords

@@ -92,8 +92,8 @@
           (if av (send avs :add av)
             (return-from :solve-normal-ik nil))
           (when (and grasp-commands
-                     (= (caar grasp-commands) (length av)))
-            (send avs :add (car grasp-commands))
+                     (= (caar grasp-commands) (get c :raw-index-value)))
+            (send avs :add (cdr (car grasp-commands)))
             (setq grasp-commands (cdr grasp-commands)))
           ))
       avs))

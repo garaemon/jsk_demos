@@ -35,6 +35,7 @@
                  ))
           )
     )
+  (:grasp-timings () grasp-timings)
   (:angle-vectors () angle-vectors)
   (:filter-look-at-hand (robot arm)
     (dotimes (i (length angle-vectors))
@@ -94,7 +95,7 @@
                                            (/ d (send self :compute-joint-time j d))))
                                joint-list diff)
                          #'(lambda (jd0 jd1) (> (elt jd0 1) (elt jd1 1)))))))))
-  (:angle-vector-duration 
+  (:angle-vector-duration
    (start end prev-angle prev-time robot-model
           time-scale
           &optional
@@ -223,15 +224,16 @@
    (let ((ts (send self :duration-list robot (send ri :state :potentio-vector) time-scale)))
      (format t "ts: ~A~%" ts)
      (format t "avs: ~A~%" angle-vectors)
-     (print `(send *ri* :angle-vector ,angle-vectors ,ts))
+     (print `(send *ri* :angle-vector ,angle-vectors ,(mapcar #'(lambda (x) (* 1000 x)) ts)))
      (cond ((and (null sleep-timings) (null grasp-timings))
-            (send ri :angle-vector-sequence angle-vectors (mapcar #'(lambda (x) (* 1000 x)) ts)))
+            (send ri :angle-vector-sequence angle-vectors (mapcar #'(lambda (x) (* 1000 x)) ts))
+            )
            (t
             ;; we assume sleep-timings are already solved
               ;; assume the length of angle-vectors is 10.
               ;; indices is (3 5), we need to split angle-vectors into 3 groups:
               ;; (0, 1, 2), (3, 4, 5) (6 7 8 9)
-            (let ((avs-and-times (mapcar #'(lambda (av tm) (list av tm))
+            (let* ((avs-and-times (mapcar #'(lambda (av tm) (list av tm))
                                          angle-vectors ts))
                   (group-indices (split-groups (mapcar #'car grasp-timings) (length avs-and-times))))
               (let ((splitted-avs-and-times
@@ -243,7 +245,7 @@
                 (mapcar #'(lambda (avs-and-times grasp-command-with-nil)
                             (send ri :angle-vector-sequence
                                   (mapcar #'car avs-and-times)
-                                  (mapcar #'cadr avs-and-times))
+                                  (mapcar #'(lambda (x) (* 1000 x)) (mapcar #'cadr avs-and-times)))
                             (cond ((eq (cadr grasp-command-with-nil) :start-grasp)
                                    (send ri :wait-interpolation)
                                    (send ri :start-grasp))
@@ -285,8 +287,10 @@
                 ((or (string= (send j :name) "RARM_JOINT3")
                      (string= (send j :name) "LARM_JOINT3"))
                  1.5)
-                ((eps= (send j :max-joint-velocity) 4.0)
+                ((eps= (send j :max-joint-velocity) 4.0) ;arms
                  2.0)
+                ((eps= (send j :max-joint-velocity) 9.0) ;legs
+                 3.0)
                 ))))
   (:animate-angle-vector 
    (robot-model &optional (r 1.0))
@@ -330,3 +334,15 @@
           (list (range-minmax before-index (1- (car splitters))))
           (split-groups (cdr splitters) length (car splitters)))
          )))
+
+(defun test-grasp ()
+  (setq *avs* (instance angle-vector-sequence :init))
+  (send *avs* :add (send *robot* :reset-pose))
+  (send *avs* :add (send *robot* :reset-manip-pose))
+  (send *avs* :add '(:start-grasp))
+  (send *avs* :add (send *robot* :reset-pose))
+  (send *avs* :add (send *robot* :reset-manip-pose))
+  (send *avs* :add '(:stop-grasp))
+  (send *avs* :add (send *robot* :reset-pose))
+  (send *avs* :send-angle-vector-sequence-test *ri* *robot* 5.0))
+
