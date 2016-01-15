@@ -14,12 +14,13 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--type', default="valve_inplace", type=str)
+parser.add_argument('--k', default=1.0, type=float)
 parser.add_argument('--p0', default=1.0, type=float)
 parser.add_argument('--m0', default=1.0, type=float)
 parser.add_argument('--e0', default=4.0, type=float)
-parser.add_argument('--p1', default=0.5, type=float)
+parser.add_argument('--p1', default=1.0, type=float)
 parser.add_argument('--p-tracking', default=0.0, type=float)
-parser.add_argument('--m1', default=0.5, type=float)
+parser.add_argument('--m1', default=1.0, type=float)
 parser.add_argument('--e1', default=1.0, type=float)
 parser.add_argument('time', type=float)
 parser.add_argument('--wait', action="store_true")
@@ -33,7 +34,12 @@ if args.type not in ["valve_inplace", "door_inplace", "valve_walk", "door_walk",
     raise Exception("Unknown type: %s" % (args.type))
 
 container = OptimizationContainer()
-k = 1.0                         # for step cost
+k = args.k                         # for step cost
+
+
+def error_func(steps):
+    return 1.0 / (1.0 + k * steps)
+
 if args.type == "valve_inplace":
     initial_dx = 10
     initial_collision = 10
@@ -68,11 +74,11 @@ elif args.type == "valve_walk":
     initial_traj = 20
     initial_speed_factor = 5
     steps = args.distance / 0.2
-    distance_factor = 1.0 / (1.0 + k * steps * steps)
-    print "distance_factor:", distance_factor
+    distance_factor = error_func(steps)
+    print >> sys.stderr, "distance_factor:", distance_factor
     p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/valve_detection.csv", args.p0 * distance_factor)
     m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_valve_ik_stand2_average_mono.csv", args.m0 * distance_factor)
-    m0_all_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_valve_ik_stand2_average.csv", args.m0  * distance_factor)
+    m0_all_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_valve_ik_stand2_average.csv", args.m0 * distance_factor)
     e_table = QualityTable("q_{e0}", "package://drc_task_common/profile_data/execution/valve/jaxon_red_valve_zmp_ee_normalized.csv", 1)
     container.register_quality_table(p0_table, p0_table.lookup_value('dx', initial_dx, 'time'))
     container.register_quality_table(m0_table, m0_all_table.lookup_value2('collision-num', 'trajectory-num',
@@ -85,8 +91,8 @@ elif args.type == "valve_walk2":
     initial_traj = 20
     initial_speed_factor = 5
     steps = args.distance / 0.2
-    distance_factor = 1.0 / (1.0 + k * steps * steps)
-    print "distance_factor:", distance_factor
+    distance_factor = error_func(steps)
+    print >> sys.stderr, "distance_factor:", distance_factor
     p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/valve_detection.csv", args.p0 * distance_factor)
     p1_table = QualityTable("q_{p1}", "package://drc_task_common/profile_data/recognition/valve_detection.csv", 1.0)
     m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_valve_ik_stand2_average_mono.csv", args.m0 * distance_factor)
@@ -109,7 +115,7 @@ elif args.type == "door_walk2":
     initial_traj = 20
     initial_speed_factor = 5
     steps = args.distance / 0.2
-    distance_factor = 1.0 / (1.0 + k * steps * steps)
+    distance_factor = error_func(steps)
     print "distance_factor:", distance_factor
     p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", args.p0 * distance_factor)
     p1_table = QualityTable("q_{p1}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", 1.0)
@@ -133,7 +139,7 @@ elif args.type == "door_walk":
     initial_traj = 20
     initial_speed_factor = 5
     steps = args.distance / 0.2
-    distance_factor = 1.0 / (1.0 + k * steps * steps)
+    distance_factor = error_func(steps)
     print "distance_factor:", distance_factor
     p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", args.p0 * distance_factor)
     m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_average_q_mono.csv", args.m0 * distance_factor)
@@ -204,6 +210,9 @@ else:
 if args.wait:
     raw_input()
 
+if args.incremental:
+    container.printOverview2Column()
+    
 while not container.is_converged(deadline_time):
     if not container.proc():
         container.draw(ax)

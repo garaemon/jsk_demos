@@ -157,6 +157,8 @@ class OptimizationContainer():
             self.tracking_times[keys[-1]].append(self.current_times[keys[-1]])
         # print "choose", min_table.name
         return True
+    def printOverview2Column(self):
+        print "time,q"
     def printOverview2(self, deadline):
         print "{0},{1}".format(self.current_time(), self.current_q())
     def printOverview(self, deadline):
