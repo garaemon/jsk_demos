@@ -8,7 +8,7 @@
   (unless (boundp '*ri*)
     (jaxon_red-init))
   (ros::rate 10)
-  (setq *tf-listener* (instance ros::transform-listener :init))
+  (setq *tf-listener* (instance ros::transform-listener :init 30))
   (unless (boundp '*robot*)
     (setq *robot* (instance jaxon_red-robot :init)))
   )
