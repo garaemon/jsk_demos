@@ -1,11 +1,25 @@
 (load "package://drc_task_common/euslisp/lib/periodic-rate.l")
 (load "~/prog/euslib/rbrain/virtual_interpolator.l")
 
+(defun go-pos-arg-from-two-coords (first-coords next-coords)
+  (let ((trans (send first-coords :transformation next-coords)))
+      (let* ((pos (send trans :worldpos))
+             (x (* 0.001 (elt pos 0)))
+             (y (* 0.001 (elt pos 1))))
+        (let* ((rotated-x-axis (send trans :rotate-vector (float-vector 1 0 0)))
+               (x-axis (float-vector 1 0 0))
+               (theta-nosign (acos (v. rotated-x-axis x-axis)))
+               (sign (if (> (elt (v* x-axis rotated-x-axis) 2) 0) 1 -1))
+               (theta (* theta-nosign sign)))
+          (list x y (rad2deg theta))
+          ))))
+
 (defclass angle-vector-sequence
   :super propertied-object
   :slots (angle-vectors interpolated-angle-vectors interpolated-times
                         sleep-timings
-                        grasp-timings))
+                        grasp-timings
+                        go-pos-arg))    ;x[m], y[m], theta[deg]
 
 ;; sleep-timings
 ;;   = ((timing duration) ...)
@@ -13,6 +27,16 @@
 (defmethod angle-vector-sequence
   (:init ()
     )
+  (:add-go-pos-arg (first-coords next-coords)
+    (setq go-pos-arg (go-pos-arg-from-two-coords first-coords next-coords)))
+  (:go-pos-arg ()
+    go-pos-arg)
+  (:go-pos-arg-inv ()
+    (list (- (elt go-pos-arg 0))
+          (- (elt go-pos-arg 1))
+          (- (elt go-pos-arg 2))))
+  (:go-pos-distance ()
+    (norm (float-vector (elt go-pos-arg 0) (elt go-pos-arg 1))))
   (:add (arg)
     ;; arg := #f(0 0 0 ...)
     ;;   or   (:sleep 1)

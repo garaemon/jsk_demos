@@ -14,13 +14,14 @@
   )
 
 (defun wait-for-recognition ()
-  (let ((start-time (ros::time-now)))
     (setq *perception-succeeded* nil)
     (while (not (and *perception-succeeded*
-                     (ros::time> *perception-succeeded-time*  start-time)))
+                     (< (send (ros::time- *perception-start-time* *perception-succeeded-time*) :to-sec) 1.0)))
+      (when *perception-succeeded*
+        (ros::ros-info "time diff: ~A" (send (ros::time- *perception-succeeded-time*  *perception-start-time*) :to-sec)))
       (ros::spin-once)
       (ros::sleep)
-      )))
+      ))
 
 (defun run-valve (dx collision-num trajectory-num speed-factor)
   ;; dx := mm
@@ -66,6 +67,7 @@
   ;; 2. clear cache
   (ros::ros-info "clearing laser cache")
   (bench
+   (setq *perception-start-time* (ros::time-now))
    (call-empty-service "/tilt_laser_listener/clear_cache")
    ;; 3. wait for recognition
    (ros::ros-info "waiting for recognition")
@@ -88,6 +90,325 @@
          (send *ri* :wait-interpolation))
        ;;nil
      (ros::ros-warn "Failed to solve ik")))
+  (send *ri* :angle-vector (send *robot* :reset-manip-pose) 5000)
+  (send *ri* :wait-interpolation)
+  )
+
+(defun run-valve-walk-with-one-perception (dx collision-num trajectory-num speed-factor)
+  (send *ri* :start-impedance :arms :moment-gain (float-vector 0 0 0) :k-p 3000 :d-p 3000)
+  (send *robot* :reset-pose)
+  (send *robot* :fix-leg-to-coords (make-coords))
+  (setq *valve* (valve-model))
+  (setq *traj* (valve-manipulation-trajectory *valve*))
+  (unless (boundp '*col*)
+    (send *robot* :reset-manip-pose)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send *col* :init-distance-table))
+  (setq *perception-succeeded-time* (ros::time-now))
+  (setq *ik-solver1* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              ;;:ik-type :use-torso
+                              :ik-type :fullbody-with-standcoords
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (setq *recog-result* (instance arrow-object :init))
+  (objects (list *robot* *valve* *recog-result* *traj*))
+  (ros::advertise "trajectory_marker" visualization_msgs::Marker)
+  (ros::unsubscribe "/door_detection/door_handle")
+  (ros::subscribe "/valve_detection/icp_registration/output_pose"
+                  geometry_msgs::PoseStamped
+                  #'test-valve-recognition-callback)
+  ;; 1. set octree resolution
+  (ros::ros-info "set octree resolution")
+  (ros::set-dynamic-reconfigure-param "/valve_detection/octree_voxel_grid" "resolution" :double (* 0.001 dx))
+  ;; 2. clear cache
+  (ros::ros-info "clearing laser cache")
+  (bench
+   (setq *perception-start-time* (ros::time-now))
+   (call-empty-service "/tilt_laser_listener/clear_cache")
+   ;; 3. wait for recognition
+   (ros::ros-info "waiting for recognition")
+   (wait-for-recognition)
+   (ros::ros-info "done"))
+  (bench
+   (ros::ros-info "planning motion")
+   (setq *avs* (send *ik-solver1* :solve
+                     :trajectory-resolution trajectory-num
+                     :stop 50
+                     :collision-num collision-num :debug-view nil))
+   (ros::ros-info "done"))
+  (if *avs*
+      (progn
+        (ros::ros-info "go-pos-arg: ~A" (send *avs* :go-pos-arg))
+        (send* *ri* :go-pos (send *avs* :go-pos-arg))
+        (bench
+         ;; 5. exec motion
+         (progn
+           (let ((tm (send *avs* :send-angle-vector-sequence-test *ri* *robot* speed-factor)))
+             (ros::ros-info "execution: ~A" tm))
+           (send *ri* :wait-interpolation))))
+       ;;nil
+    (ros::ros-warn "Failed to solve ik"))
+  (send *ri* :angle-vector (send *robot* :reset-manip-pose) 5000)
+  (send *ri* :wait-interpolation)
+  )
+
+
+(defun run-valve-walk-with-one-perception* (dx collision-num trajectory-num speed-factor)
+  (send *ri* :start-impedance :arms :moment-gain (float-vector 0 0 0) :k-p 3000 :d-p 3000)
+  (send *robot* :reset-pose)
+  (send *robot* :fix-leg-to-coords (make-coords))
+  (setq *valve* (valve-model))
+  (setq *traj* (valve-manipulation-trajectory *valve*))
+  (unless (boundp '*col*)
+    (send *robot* :reset-manip-pose)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send *col* :init-distance-table))
+  (setq *perception-succeeded-time* (ros::time-now))
+  (setq *ik-solver1* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              ;;:ik-type :use-torso
+                              :ik-type :fullbody-with-standcoords
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (setq *ik-solver2* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              :ik-type :use-torso
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (setq *recog-result* (instance arrow-object :init))
+  (objects (list *robot* *valve* *recog-result* *traj*))
+  (ros::advertise "trajectory_marker" visualization_msgs::Marker)
+  (ros::unsubscribe "/door_detection/door_handle")
+  (ros::subscribe "/valve_detection/icp_registration/output_pose"
+                  geometry_msgs::PoseStamped
+                  #'test-valve-recognition-callback)
+  ;; 1. set octree resolution
+  (ros::ros-info "set octree resolution")
+  (ros::set-dynamic-reconfigure-param "/valve_detection/octree_voxel_grid" "resolution" :double (* 0.001 dx))
+  ;; 2. clear cache
+  (ros::ros-info "clearing laser cache")
+  (bench
+   (setq *perception-start-time* (ros::time-now))
+   (call-empty-service "/tilt_laser_listener/clear_cache")
+   ;; 3. wait for recognition
+   (ros::ros-info "waiting for recognition")
+   (wait-for-recognition)
+   (ros::ros-info "done"))
+  (setq *before-robot-coords* (send *robot* :foot-midcoords))
+  (bench
+   (ros::ros-info "planning motion")    ;solve ik to normalize time
+   (setq *avs* (send *ik-solver1* :solve
+                     :trajectory-resolution trajectory-num
+                     :stop 50
+                     :collision-num collision-num :debug-view nil))
+   (ros::ros-info "done"))
+  
+  (setq *stand-coords* (valve-stand-coords *valve*))
+  (send *robot* :reset-manip-pose)
+  (send *robot* :fix-leg-to-coords *stand-coords*)
+  (bench
+   (ros::ros-info "planning motion2")
+   (setq *avs* (send *ik-solver2* :solve
+                     :trajectory-resolution trajectory-num
+                     :stop 50
+                     :collision-num collision-num :debug-view nil))
+   (ros::ros-info "done"))
+  (if *avs*
+      (progn
+        (ros::ros-info "go-pos-arg: ~A" (go-pos-arg-from-two-coords *before-robot-coords* *stand-coords*))
+        (send* *ri* :go-pos (go-pos-arg-from-two-coords *before-robot-coords* *stand-coords*))
+        (bench
+         ;; 5. exec motion
+         (progn
+           (let ((tm (send *avs* :send-angle-vector-sequence-test *ri* *robot* speed-factor)))
+             (ros::ros-info "execution: ~A" tm))
+           (send *ri* :wait-interpolation))))
+       ;;nil
+    (ros::ros-warn "Failed to solve ik"))
+  (send *ri* :angle-vector (send *robot* :reset-manip-pose) 5000)
+  (send *ri* :wait-interpolation)
+  )
+
+
+(defun run-valve-walk-with-two-perception* (dx dx2 collision-num trajectory-num collision-num2 trajectory-num2 speed-factor)
+  (send *ri* :start-impedance :arms :moment-gain (float-vector 0 0 0) :k-p 3000 :d-p 3000)
+  (send *robot* :reset-pose)
+  (send *robot* :fix-leg-to-coords (make-coords))
+  (setq *valve* (valve-model))
+  (setq *traj* (valve-manipulation-trajectory *valve*))
+  (unless (boundp '*col*)
+    (send *robot* :reset-manip-pose)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send *col* :init-distance-table))
+  (setq *perception-succeeded-time* (ros::time-now))
+  (setq *ik-solver1* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              ;;:ik-type :use-torso
+                              :ik-type :fullbody-with-standcoords
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (setq *ik-solver2* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              :ik-type :use-torso
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (setq *recog-result* (instance arrow-object :init))
+  (objects (list *robot* *valve* *recog-result* *traj*))
+  (ros::advertise "trajectory_marker" visualization_msgs::Marker)
+  (ros::unsubscribe "/door_detection/door_handle")
+  (ros::subscribe "/valve_detection/icp_registration/output_pose"
+                  geometry_msgs::PoseStamped
+                  #'test-valve-recognition-callback)
+  ;; 1. set octree resolution
+  (ros::ros-info "set octree resolution")
+  (ros::set-dynamic-reconfigure-param "/valve_detection/octree_voxel_grid" "resolution" :double (* 0.001 dx))
+  ;; 2. clear cache
+  (ros::ros-info "clearing laser cache")
+  (bench
+   (setq *perception-start-time* (ros::time-now))
+   (call-empty-service "/tilt_laser_listener/clear_cache")
+   ;; 3. wait for recognition
+   (ros::ros-info "waiting for recognition")
+   (wait-for-recognition)
+   (ros::ros-info "done"))
+  (setq *before-robot-coords* (send *robot* :foot-midcoords))
+  (bench
+   (ros::ros-info "planning motion")    ;solve ik to normalize time
+   (setq *avs* (send *ik-solver1* :solve
+                     :trajectory-resolution trajectory-num
+                     :stop 50
+                     :collision-num collision-num :debug-view nil))
+   (ros::ros-info "done"))
+  
+  (setq *stand-coords* (valve-stand-coords *valve*))
+  (send *robot* :reset-manip-pose)
+  (send *robot* :fix-leg-to-coords *stand-coords*)
+  ;;(ros::ros-info "go-pos-arg: ~A" (send *avs* :go-pos-arg))
+  (ros::ros-info "go-pos-arg: ~A" (go-pos-arg-from-two-coords *before-robot-coords* *stand-coords*))
+  ;; move head to valve
+  (send *robot* :head :look-at (send *valve* :worldpos))
+  (send *ri* :angle-vector (send *robot* :angle-vector) 3000)
+  (send* *ri* :go-pos (go-pos-arg-from-two-coords *before-robot-coords* *stand-coords*))
+  
+  ;; 1. set octree resolution
+  (ros::ros-info "set octree resolution")
+  (ros::set-dynamic-reconfigure-param "/valve_detection/octree_voxel_grid" "resolution" :double (* 0.001 dx2))
+  ;; 2. clear cache
+  (ros::ros-info "clearing laser cache")
+  (bench
+   (setq *perception-start-time* (ros::time-now))
+   (call-empty-service "/tilt_laser_listener/clear_cache")
+   ;; 3. wait for recognition
+   (ros::ros-info "waiting for recognition")
+   (wait-for-recognition)
+   (ros::ros-info "done"))
+  (bench
+   (ros::ros-info "planning motion")    ;solve ik to normalize time
+   (setq *avs* (send *ik-solver2* :solve
+                     :trajectory-resolution trajectory-num2
+                     :stop 50
+                     :collision-num collision-num2 :debug-view nil))
+   (ros::ros-info "done"))
+  (if *avs*
+      (progn
+        (bench
+         ;; 5. exec motion
+         (progn
+           (let ((tm (send *avs* :send-angle-vector-sequence-test *ri* *robot* speed-factor)))
+             (ros::ros-info "execution: ~A" tm))
+           (send *ri* :wait-interpolation))))
+       ;;nil
+    (ros::ros-warn "Failed to solve ik"))
+  
+  (send *ri* :angle-vector (send *robot* :reset-manip-pose) 5000)
+  (send *ri* :wait-interpolation)
+  
+  )
+
+(defun run-valve-walk-with-tracking* (dx collision-num trajectory-num speed-factor)
+  (send *ri* :start-impedance :arms :moment-gain (float-vector 0 0 0) :k-p 3000 :d-p 3000)
+  (send *robot* :reset-pose)
+  (send *robot* :fix-leg-to-coords (make-coords))
+  (setq *valve* (valve-model))
+  (setq *traj* (valve-manipulation-trajectory *valve*))
+  (unless (boundp '*col*)
+    (send *robot* :reset-manip-pose)
+    (setq *col* (instance collision-link-parameter :init *robot*))
+    (send *col* :init-distance-table))
+  (setq *perception-succeeded-time* (ros::time-now))
+  (setq *ik-solver1* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              ;;:ik-type :use-torso
+                              :ik-type :fullbody-with-standcoords
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (setq *ik-solver2* (instance ik-solver
+                              :init *robot*
+                              :rarm
+                              :ik-type :use-torso
+                              :move-target (send *robot* :rarm :end-coords)
+                              :trajectory *traj*
+                              :collision-parameter *col*
+                              :prepare-angle-vector (send *robot* :reset-manip-pose)))
+  (setq *recog-result* (instance arrow-object :init))
+  (objects (list *robot* *valve* *recog-result* *traj*))
+  (ros::advertise "trajectory_marker" visualization_msgs::Marker)
+  (ros::unsubscribe "/door_detection/door_handle")
+  (ros::subscribe "/valve_detection/icp_registration/output_pose"
+                  geometry_msgs::PoseStamped
+                  #'test-valve-recognition-callback)
+  (setq *perception-start-time* (ros::time-now))
+  (wait-for-recognition)
+  (setq *before-robot-coords* (send *robot* :foot-midcoords))
+  (setq *stand-coords* (valve-stand-coords *valve*))
+  (send *robot* :reset-manip-pose)
+  (send *robot* :fix-leg-to-coords *stand-coords*)
+  ;;(ros::ros-info "go-pos-arg: ~A" (send *avs* :go-pos-arg))
+  (ros::ros-info "go-pos-arg: ~A" (go-pos-arg-from-two-coords *before-robot-coords* *stand-coords*))
+  (send* *ri* :go-pos-no-wait (go-pos-arg-from-two-coords *before-robot-coords* *stand-coords*))
+  (while (> (length (send *ri* :get-remaining-foot-step-sequence)) 2)
+   (ros::sleep)
+   (ros::spin-once))
+  (bench
+   (ros::ros-info "planning motion")    ;solve ik to normalize time
+   (setq *avs* (send *ik-solver2* :solve
+                     :trajectory-resolution trajectory-num
+                     :stop 50
+                     :collision-num collision-num :debug-view nil))
+   (ros::ros-info "done"))
+  (ros::ros-info "wait go-pos")
+  (while (not (= (length (send *ri* :get-remaining-foot-step-sequence)) 0))
+   (ros::sleep))
+  (if *avs*
+      (progn
+        (bench
+         ;; 5. exec motion
+         (progn
+           (let ((tm (send *avs* :send-angle-vector-sequence-test *ri* *robot* speed-factor)))
+             (ros::ros-info "execution: ~A" tm))
+           (send *ri* :wait-interpolation))))
+       ;;nil
+    (ros::ros-warn "Failed to solve ik"))
+  
   (send *ri* :angle-vector (send *robot* :reset-manip-pose) 5000)
   (send *ri* :wait-interpolation)
   )
@@ -174,5 +495,15 @@
     (send *ri* :angle-vector (send *robot* :angle-vector) 5000)
     (send *ri* :wait-interpolation)
     )
+
+(defun test-valve-perception-with-clear-cache ()
+    (bench
+   (setq *perception-start-time* (ros::time-now))
+   (call-empty-service "/tilt_laser_listener/clear_cache")
+   ;; 3. wait for recognition
+   (ros::ros-info "waiting for recognition")
+   (wait-for-recognition)
+   (ros::ros-info "done"))
+  )
 
 ;; (load "experiment.l")

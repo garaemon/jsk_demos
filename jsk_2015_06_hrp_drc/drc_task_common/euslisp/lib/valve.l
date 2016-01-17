@@ -39,6 +39,22 @@
         ))
     ))
 
+(defun valve-stand-coords (valve)
+  (let* ((c (send valve :copy-worldcoords))
+         (x (elt (send c :worldpos) 0))
+         (y (elt (send c :worldpos) 1))
+         (theta-nosign (acos (v. (float-vector 1 0 0)
+                                 (send c :rotate-vector (float-vector 0 0 1)))))
+         (theta-sign (if (> (elt (v* (float-vector 1 0 0)
+                                     (send c :rotate-vector (float-vector 0 0 1))) 2) 0)
+                         1 -1))
+         (theta (* theta-nosign theta-sign)))
+    (let ((ret (make-coords :pos (float-vector x y 0))))
+      (send ret :rotate theta :z :local)
+      (send ret :translate (float-vector -800 300 0))
+      )
+    ))
+
 (defun valve-manipulation-trajectory (valve-model &key (robot :hrp2) (z-offset -100))
   (let* ((valve-tmp (valve-model)))
     (let ((initial-theta 45)
@@ -71,22 +87,23 @@
                             (send (send (car (last coords-list)) :copy-worldcoords)
                                   :translate (float-vector -250 0 0))
                             )
-                           (make-cascoords 
-                            :coords
-                            (send (send (car coords-list) :copy-worldcoords)
-                                  :translate (float-vector -250 0 0))
-                           ))
+                           ;; (make-cascoords 
+                           ;;  :coords
+                           ;;  (send (send (car coords-list) :copy-worldcoords)
+                           ;;        :translate (float-vector -250 0 0))
+                           ;;  )
+                           )
                           )
                   :parent-object valve-model)))))
 
-(defun coords-on-valve (theta &optional (r 180))
+(defun coords-on-valve (theta &optional (r 160))
   (let ((c (make-cascoords :pos (point-on-valve theta r))))
     (send c :rotate pi/2 :z)
     (send c :rotate -pi/2 :y)
     (send c :rotate (deg2rad (+ theta)) :x)
     c))
 
-(defun point-on-valve (theta &optional (r 180))
+(defun point-on-valve (theta &optional (r 160))
   (float-vector (* r (cos (deg2rad theta)))
                 (* r (sin (deg2rad theta)))
                 0))

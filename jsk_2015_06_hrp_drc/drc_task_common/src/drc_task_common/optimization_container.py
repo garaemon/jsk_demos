@@ -83,9 +83,10 @@ class QualityTable():
                 return c
 
 class OptimizationContainer():
-    def __init__(self):
+    def __init__(self, no_gui):
         self.iteration_times = 0
         self.tables = []
+        self.no_gui = no_gui
         self.initial_times = []
         self.current_times = []
         self.tracking_times = []
@@ -184,6 +185,8 @@ class OptimizationContainer():
             for p in t.other_params():
                 print "    {0}: {1}".format(p, t.lookup_value("time",s, p))
     def draw(self, ax):
+        if self.no_gui:
+            return
         ax.cla()
         ax.set_xlabel('$t$', fontsize=22)
         ax.set_ylabel('$q$', fontsize=22)

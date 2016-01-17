@@ -14,8 +14,9 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--type', default="valve_inplace", type=str)
-parser.add_argument('--k', default=1.0, type=float)
+parser.add_argument('--k', default=10.0, type=float)
 parser.add_argument('--p0', default=1.0, type=float)
+parser.add_argument('--no-gui', action="store_true")
 parser.add_argument('--m0', default=1.0, type=float)
 parser.add_argument('--e0', default=4.0, type=float)
 parser.add_argument('--p1', default=1.0, type=float)
@@ -33,7 +34,7 @@ deadline_time = args.time
 if args.type not in ["valve_inplace", "door_inplace", "valve_walk", "door_walk", "valve_walk2", "door_walk2"]:
     raise Exception("Unknown type: %s" % (args.type))
 
-container = OptimizationContainer()
+container = OptimizationContainer(args.no_gui)
 k = args.k                         # for step cost
 
 
@@ -92,6 +93,10 @@ elif args.type == "valve_walk2":
     initial_speed_factor = 5
     steps = args.distance / 0.2
     distance_factor = error_func(steps)
+    args.p0 = 0.1
+    args.m0 = 0.1
+    args.p1 = 1.0
+    args.m1 = 1.0
     print >> sys.stderr, "distance_factor:", distance_factor
     p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/valve_detection.csv", args.p0 * distance_factor)
     p1_table = QualityTable("q_{p1}", "package://drc_task_common/profile_data/recognition/valve_detection.csv", 1.0)
@@ -116,6 +121,10 @@ elif args.type == "door_walk2":
     initial_speed_factor = 5
     steps = args.distance / 0.2
     distance_factor = error_func(steps)
+    args.p0 = 0.2
+    args.m0 = 0.2
+    args.p1 = 1.0
+    args.m1 = 0.5
     print "distance_factor:", distance_factor
     p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", args.p0 * distance_factor)
     p1_table = QualityTable("q_{p1}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", 1.0)
@@ -164,11 +173,12 @@ elif args.type == "door_walk":
 # initial_collision = 5
 # initial_traj = 12
 # initial_execution_sigma = 20.0198
-
-ax = plt.figure().add_subplot(111)
-ax.set_xlabel('$t$')
-ax.set_ylabel('$q$')
-
+if not args.no_gui:
+    ax = plt.figure().add_subplot(111)
+    ax.set_xlabel('$t$')
+    ax.set_ylabel('$q$')
+else:
+    ax = None
 # check direction
 
 

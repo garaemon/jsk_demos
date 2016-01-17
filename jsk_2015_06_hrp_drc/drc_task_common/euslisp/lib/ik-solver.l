@@ -150,7 +150,8 @@
                                              debug-view)
     (let ((leg-target-coords (list (send robot :lleg :end-coords :copy-worldcoords)
                                    (send robot :rleg :end-coords :copy-worldcoords)))
-          (ret (instance angle-vector-sequence :init)))
+          (ret (instance angle-vector-sequence :init))
+          (before-stand-coords (send robot :foot-midcoords)))
       (let ((res (fullbody-inverse-kinematics-with-standcoords 
                   robot 
                   via-coords
@@ -165,6 +166,7 @@
                   (send col-parameter :collision-avoidance-link-pair
                         (send self :link-list)
                         collision-num)
+                  :root-link-virtual-joint-weight (float-vector 0.005 0.01 0 0 0 0.05)
                   :additional-weight-list
                   (list (list (send robot :torso :waist-p :child-link) 0.1)
                         (list (send robot :torso :waist-y :child-link) 0.3)
@@ -174,14 +176,23 @@
                   :warnp nil
                   :debug (if debug-view :no-message nil))))
         ;; res := (list standpos angle-vector-list)
-        (if (null (cadr res))
-            ;; even though fullbody-inverse-kinematics-with-standcoords fails, 
-            ;; it is worth to test :use-torso ik
-            (progn
-              (ros::ros-warn "try :use-torso because :fullbody-with-standcoords failed")
-              (send self :solve-normal-ik :via-coords via-coords :collision-num collision-num
-                    :stop stop :debug-view debug-view :ik-type :use-torso))
-          res))))
+        (ros::ros-warn "try :use-torso because :fullbody-with-standcoords failed")
+        (let ((use-torso-res (send self :solve-normal-ik :via-coords via-coords :collision-num collision-num
+                                   :stop stop :debug-view debug-view :ik-type :use-torso)))
+          (if use-torso-res
+              (send use-torso-res :add-go-pos-arg before-stand-coords (send robot :foot-midcoords)))
+          use-torso-res))))
+        ;; (if (null (cadr res))
+        ;;     ;; even though fullbody-inverse-kinematics-with-standcoords fails, 
+        ;;     ;; it is worth to test :use-torso ik
+        ;;     (progn
+        ;;       (ros::ros-warn "try :use-torso because :fullbody-with-standcoords failed")
+        ;;       (let ((use-torso-res (send self :solve-normal-ik :via-coords via-coords :collision-num collision-num
+        ;;                                  :stop stop :debug-view debug-view :ik-type :use-torso)))
+        ;;         (if use-torso-res
+        ;;             (send use-torso-res :add-go-pos-arg before-stand-coords (send robot :foot-midcoords)))
+        ;;         use-torso-res))
+        ;;   res))))
         ;;   )
         ;; (if res
         ;;     (print res)
