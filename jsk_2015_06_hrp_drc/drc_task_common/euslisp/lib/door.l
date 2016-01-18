@@ -21,16 +21,64 @@
          (origin->recog-pos (zset (send origin->recog :worldpos) (elt (send origin->knob* :worldpos) 2)))
          (origin->recog-yaw (acos (v. 
                                    (normalize-vector 
-                                    (z0 (send origin->recog :rotate-vector (float-vector 0 1 0))))
-                                   (float-vector 0 -1 0))))
+                                    (z0 (send origin->recog :rotate-vector (float-vector 1 0 0))))
+                                   (float-vector 1 0 0))))
          (normalized-knob-coords (make-coords :pos origin->recog-pos)))
+    (format t "origin->recog-yaw: ~A~%" (rad2deg origin->recog-yaw))
     (send normalized-knob-coords :rotate origin->recog-yaw :z :local)
+    (send normalized-knob-coords :rotate pi :z :local)
+    (send normalized-knob-coords :draw-on :flush t)
     (send origin->knob* :draw-on :flush t)
     (send door :newcoords (send normalized-knob-coords :transform knob*->door))
     ))
 
 ;; for debug purpse
 (defun test-door-recognition-callback (msg)
+  (print 'callback)
+  ;; msg := geometry_msgs/PoseStamped
+  ;; it requires *tf-listener*
+  (let ((origin->ground (send *tf-listener* :lookup-transform "odom" "ground" (ros::time 0)))
+        (origin->msg 
+         (send *tf-listener* :lookup-transform "odom" (send msg :header :frame_id) 
+               ;;(send msg :header :stamp)
+               (ros::time 0)
+               )))
+    (send *robot* :fix-leg-to-coords origin->ground)
+    ;; (send *robot* :fix-leg-to-coords (make-coords :pos (z0 (send origin->ground :worldpos))
+    ;;                                               :rot (send origin->ground :worldrot)))
+    (when origin->msg
+      (setq *perception-succeeded* t)
+      (setq *perception-succeeded-time* (send msg :header :stamp))
+      (send *door* :newcoords (make-coords))
+      (send *robot* :fix-leg-to-coords origin->ground)
+      (let ((traj (door-manipulation-trajectory *door* :robot :jaxon)))
+        (setq *traj* traj)
+        (let ((origin->recog (send origin->msg :transform (ros::tf-pose-stamped->coords msg))))
+          ;; check orientation by ground->recog
+          (let ((ground->recog (send (send origin->ground :inverse-transformation)
+                                     :transform origin->recog)))
+            ;; check x axis of ground->recog
+            (when (> (v. (float-vector 1 0 0) (send ground->recog :rotate-vector (float-vector 1 0 0))) 0)
+              ;; flip origin->recog
+              (ros::ros-info "flip origin->recog")
+              (send origin->recog :rotate pi :z :local)
+              )
+            )
+          (send *recog-result* :newcoords (send origin->recog :copy-worldcoords))
+          (move-door-model-from-knob-coords *door* origin->recog origin->ground)
+          (let ((marker (send traj :to-marker "odom")))
+            (ros::publish "trajectory_marker" marker)
+            ))
+        ))
+    )
+  ;; test ik-solver
+  ;;(setup-move-targets *robot*)
+  (send *irtviewer* :draw-objects)
+  (x::window-main-one)
+  )
+
+
+(defun test-door-recognition-callback-old (msg)
   (print 'callback)
   ;; msg := geometry_msgs/PoseStamped
   ;; it requires *tf-listener*
@@ -63,6 +111,7 @@
   (send *irtviewer* :draw-objects)
   (x::window-main-one))
 
+
 (defun test-door-recognition (robot-type)
   (ros::roseus "test_door_recognition")
   (setq *tf-listener* (instance ros::transform-listener :init))
@@ -78,8 +127,15 @@
   (ros::advertise "trajectory_marker" visualization_msgs::Marker)
   (ros::subscribe "/door_detection/door_handle" 
     geometry_msgs::PoseStamped #'test-door-recognition-callback)
-  (ros::spin)
+  ;; (ros::subscribe "/plane_supported_cuboid_estimator/output/result_pose"
+  ;;   geometry_msgs::PoseStamped #'test-door-recognition-callback)
+  ;;(ros::spin)
   )
+
+(defun door-stand-coords (door)
+  (let ((c (send door :copy-worldcoords)))
+    (send c :translate (float-vector -900 -100 0))
+    c))
 
 (defun test-move-door-model-from-knob-coords ()
   (require "package://hrpsys_ros_bridge_tutorials/euslisp/hrp2jsknt-interface.l")
@@ -167,23 +223,23 @@
                     ((eq robot :jaxon)
                      (list (make-coords-relative knob-coords :pos (float-vector -200 -25 -50) :rpy (float-vector 0 0 0))
                            :start-grasp
-                           (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0))
+                           (make-coords-relative knob-coords :pos (float-vector -100 -25 -50) :rpy (float-vector 0 0 0))
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle -35)
-                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -100 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-hinge-joint) :joint-angle -10)
-                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -100 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-hinge-joint) :joint-angle -20)
-                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -100 -25 -50) :rpy (float-vector 0 0 0)))
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle -35)
-                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -100 -25 -50) :rpy (float-vector 0 0 0)))
                            :stop-grasp
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle 0)
-                             (make-coords-relative knob-coords :pos (float-vector -150 -25 -50) :rpy (float-vector 0 0 0)))
+                             (make-coords-relative knob-coords :pos (float-vector -100 -25 -50) :rpy (float-vector 0 0 0)))
                            ))
                     )
               :parent-object (send door-model :handle :knob-handle))))
