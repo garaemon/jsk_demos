@@ -22,11 +22,11 @@
          (origin->recog-yaw (acos (v. 
                                    (normalize-vector 
                                     (z0 (send origin->recog :rotate-vector (float-vector 1 0 0))))
-                                   (float-vector 1 0 0))))
+                                   (float-vector -1 0 0))))
          (normalized-knob-coords (make-coords :pos origin->recog-pos)))
     (format t "origin->recog-yaw: ~A~%" (rad2deg origin->recog-yaw))
     (send normalized-knob-coords :rotate origin->recog-yaw :z :local)
-    (send normalized-knob-coords :rotate pi :z :local)
+    ;;(send normalized-knob-coords :rotate pi :z :local)
     (send normalized-knob-coords :draw-on :flush t)
     (send origin->knob* :draw-on :flush t)
     (send door :newcoords (send normalized-knob-coords :transform knob*->door))
@@ -240,7 +240,28 @@
                            (progn
                              (send (send door-tmp :joint :door-knob-joint) :joint-angle 0)
                              (make-coords-relative knob-coords :pos (float-vector -100 -25 -50) :rpy (float-vector 0 0 0)))
-                           ))
+                           )
+                     ;; (list (make-coords-relative knob-coords :pos (float-vector -200 -25 -25) :rpy (float-vector 0 0 0))
+                     ;;       :start-grasp
+                     ;;       (make-coords-relative knob-coords :pos (float-vector -150 -25 -25) :rpy (float-vector 0 0 0))
+                     ;;       (progn
+                     ;;         (send (send door-tmp :joint :door-knob-joint) :joint-angle -35)
+                     ;;         (make-coords-relative knob-coords :pos (float-vector -150 -25 -25) :rpy (float-vector 0 0 0)))
+                     ;;       (progn
+                     ;;         (send (send door-tmp :joint :door-hinge-joint) :joint-angle -10)
+                     ;;         (make-coords-relative knob-coords :pos (float-vector -150 -25 -25) :rpy (float-vector 0 0 0)))
+                     ;;       (progn
+                     ;;         (send (send door-tmp :joint :door-hinge-joint) :joint-angle -20)
+                     ;;         (make-coords-relative knob-coords :pos (float-vector -150 -25 -25) :rpy (float-vector 0 0 0)))
+                     ;;       (progn
+                     ;;         (send (send door-tmp :joint :door-knob-joint) :joint-angle -35)
+                     ;;         (make-coords-relative knob-coords :pos (float-vector -150 -25 -25) :rpy (float-vector 0 0 0)))
+                     ;;       :stop-grasp
+                     ;;       (progn
+                     ;;         (send (send door-tmp :joint :door-knob-joint) :joint-angle 0)
+                     ;;         (make-coords-relative knob-coords :pos (float-vector -150 -25 -25) :rpy (float-vector 0 0 0)))
+                     ;;       )
+                     )
                     )
               :parent-object (send door-model :handle :knob-handle))))
 

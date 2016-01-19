@@ -129,7 +129,7 @@
                             (send self :link-list)
                             collision-num)
                       :additional-weight-list
-                      (list (list (send robot :torso :waist-p :child-link) 0.1)
+                      (list (list (send robot :torso :waist-p :child-link) 0.0)
                             (list (send robot :torso :waist-y :child-link) 0.3)
                             (list (send robot :torso :waist-r :child-link) 0.0))
                       ;; (list (list (send robot :rleg :toe-p :child-link) 0)

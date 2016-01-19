@@ -126,9 +126,9 @@ elif args.type == "door_walk2":
     args.p1 = 1.0
     args.m1 = 0.5
     print "distance_factor:", distance_factor
-    p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", args.p0 * distance_factor)
-    p1_table = QualityTable("q_{p1}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", 1.0)
-    m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_average_q_mono.csv", args.m0 * distance_factor)
+    p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/door_detection.csv", args.p0 * distance_factor)
+    p1_table = QualityTable("q_{p1}", "package://drc_task_common/profile_data/recognition/door_detection.csv", 1.0)
+    m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2_average_mono.csv", args.m0 * distance_factor)
     m1_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_average_q_mono.csv", args.m1)
     m0_all_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2_average.csv", args.m0 * distance_factor)
     m1_all_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_average_q.csv", args.m1)
@@ -150,8 +150,8 @@ elif args.type == "door_walk":
     steps = args.distance / 0.2
     distance_factor = error_func(steps)
     print "distance_factor:", distance_factor
-    p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/epsilon_plane_sigma.csv", args.p0 * distance_factor)
-    m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_average_q_mono.csv", args.m0 * distance_factor)
+    p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/door_detection.csv", args.p0 * distance_factor)
+    m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2_average_mono.csv", args.m0 * distance_factor)
     m0_all_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2_average.csv", args.m0 * distance_factor)
     e_table = QualityTable("q_{e0}", "package://drc_task_common/profile_data/execution/door/jaxon_red_door_zmp_ee_normalized.csv", 1)
     container.register_quality_table(p0_table, p0_table.lookup_value('dx', initial_dx, 'time'))
