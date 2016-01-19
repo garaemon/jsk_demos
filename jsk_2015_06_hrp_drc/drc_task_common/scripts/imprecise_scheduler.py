@@ -27,11 +27,12 @@ parser.add_argument('time', type=float)
 parser.add_argument('--wait', action="store_true")
 parser.add_argument('--quiet', action="store_true")
 parser.add_argument('--incremental', action="store_true")
+parser.add_argument('--save-img', action="store_true")
 parser.add_argument('--distance', type=float)
 args = parser.parse_args()
 deadline_time = args.time
 
-if args.type not in ["valve_inplace", "door_inplace", "valve_walk", "door_walk", "valve_walk2", "door_walk2"]:
+if args.type not in ["valve_inplace", "door_inplace", "valve_walk", "door_walk", "valve_walk2", "door_walk2", "sample"]:
     raise Exception("Unknown type: %s" % (args.type))
 
 container = OptimizationContainer(args.no_gui)
@@ -159,8 +160,14 @@ elif args.type == "door_walk":
                                                                          initial_collision, initial_traj,
                                                                          'time'))
     container.register_quality_table(e_table, e_table.lookup_value('speed-factor', initial_speed_factor, 'time'))
-
-    
+elif args.type == "sample":
+    p_table = QualityTable("q_{p}", "package://drc_task_common/profile_data/sample/p.csv", 1)
+    m_table = QualityTable("q_{m}", "package://drc_task_common/profile_data/sample/m.csv", 1)
+    e_table = QualityTable("q_{e}", "package://drc_task_common/profile_data/sample/e.csv", 1)
+    container.register_quality_table(p_table, 0.6)
+    container.register_quality_table(m_table, 0.6)
+    container.register_quality_table(e_table, 0.6)
+    container.dt = 0.1
 # global variables
 # door
 # perception_csv = "epsilon_plane_sigma.csv"
@@ -222,12 +229,24 @@ if args.wait:
 
 if args.incremental:
     container.printOverview2Column()
-    
+
+counter = 0
+container.draw(ax)
+if args.save_img:
+    plt.savefig('image_{0:0>3}.png'.format(counter))
+counter = counter + 1
+if args.wait:
+    raw_input()
+
 while not container.is_converged(deadline_time):
     if not container.proc():
         container.draw(ax)
         break
     container.draw(ax)
+    if args.save_img:
+        print 'image_{0:0>3}.png'.format(counter)
+        plt.savefig('image_{0:0>3}.png'.format(counter))
+    counter = counter + 1
     if args.incremental:
         container.printOverview2(deadline_time)
     if args.wait:
