@@ -90,6 +90,7 @@ class OptimizationContainer():
         self.initial_times = []
         self.current_times = []
         self.tracking_times = []
+        self.dt = 0.3
     def register_quality_table(self, table, initial_time):
         self.tables.append(table)
         self.initial_times.append(initial_time)
@@ -115,7 +116,7 @@ class OptimizationContainer():
         self.direction = -1
     def delta_time(self):
         # return 0.1 * self.direction
-        return 0.3 * self.direction
+        return self.dt * self.direction
     def is_converged(self, time_d):
         if self.direction == 1:
             return time_d < self.current_time()
