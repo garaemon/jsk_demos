@@ -22,11 +22,19 @@
          (origin->recog-yaw (acos (v. 
                                    (normalize-vector 
                                     (z0 (send origin->recog :rotate-vector (float-vector 1 0 0))))
-                                   (float-vector -1 0 0))))
+                                   (float-vector 1 0 0))))
          (normalized-knob-coords (make-coords :pos origin->recog-pos)))
     (format t "origin->recog-yaw: ~A~%" (rad2deg origin->recog-yaw))
-    (send normalized-knob-coords :rotate origin->recog-yaw :z :local)
-    ;;(send normalized-knob-coords :rotate pi :z :local)
+    (format t "direction: ~A~%" (elt (v* (normalize-vector 
+                                        (z0 (send origin->recog :rotate-vector (float-vector 1 0 0))))
+                                         (float-vector 1 0 0)) 2))
+    (if (< (elt (v* (normalize-vector 
+                     (z0 (send origin->recog :rotate-vector (float-vector 1 0 0))))
+                    (float-vector 1 0 0)) 2) 0)
+        (send normalized-knob-coords :rotate origin->recog-yaw :z :local)
+        (send normalized-knob-coords :rotate (- origin->recog-yaw) :z :local)
+      )
+    (send normalized-knob-coords :rotate pi :z :local)
     (send normalized-knob-coords :draw-on :flush t)
     (send origin->knob* :draw-on :flush t)
     (send door :newcoords (send normalized-knob-coords :transform knob*->door))

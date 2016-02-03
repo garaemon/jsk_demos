@@ -96,14 +96,14 @@
                           )
                   :parent-object valve-model)))))
 
-(defun coords-on-valve (theta &optional (r 160))
+(defun coords-on-valve (theta &optional (r 180))
   (let ((c (make-cascoords :pos (point-on-valve theta r))))
     (send c :rotate pi/2 :z)
     (send c :rotate -pi/2 :y)
     (send c :rotate (deg2rad (+ theta)) :x)
     c))
 
-(defun point-on-valve (theta &optional (r 160))
+(defun point-on-valve (theta &optional (r 180))
   (float-vector (* r (cos (deg2rad theta)))
                 (* r (sin (deg2rad theta)))
                 0))

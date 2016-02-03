@@ -3,20 +3,19 @@
   <arg name="INPUT_CLOUD" default="/full_cloud2" />
   <arg name="RESOLUTION" default="0.01" />
   <!-- Prepare pointcloud  -->
+  <group ns="door_detection">
   <node pkg="rviz" type="rviz" name="rviz_input"
         launch-prefix="glc-capture -i --disable-audio"
         args="-d $(find drc_task_common)/config/door/input.rviz"/>
-  <node pkg="rviz" type="rviz" name="rviz_recog"
+  <node pkg="rviz" type="rviz" name="rviz_recog" if="false"
         launch-prefix="glc-capture -i --disable-audio"
         args="-d $(find drc_task_common)/config/door/recog.rviz"/>
   <node pkg="rviz" type="rviz" name="rviz_result"
         launch-prefix="glc-capture -i --disable-audio"
         args="-d $(find drc_task_common)/config/door/result.rviz"/>
-  <node pkg="rviz" type="rviz" name="rviz_downsample"
+  <node pkg="rviz" type="rviz" name="rviz_downsample"  if="false"
         launch-prefix="glc-capture -i --disable-audio"
-        args="-d $(find drc_task_common)/config/door/downsample.rviz"/>
-
-  <group ns="door_detection">
+          args="-d $(find drc_task_common)/config/door/downsample.rviz"/>
     <node pkg="jsk_pcl_ros" type="octree_voxel_grid" name="octree_voxel_grid">
       <remap from="~input" to="$(arg INPUT_CLOUD)" />
       <rosparam subst_value="true">
@@ -69,6 +68,18 @@
         max_area: 5.0
       </rosparam>
     </node>
+    <node pkg="jsk_pcl_ros_utils" type="plane_rejector" name="plane_rejector">
+      <remap from="~input_polygons" to="region_growing_multiple_plane_segmentation/output/polygons" />
+      <remap from="~input_coefficients" to="region_growing_multiple_plane_segmentation/output/coefficients" />
+      <remap from="~input_inliers" to="region_growing_multiple_plane_segmentation/output/inliers" />
+      <rosparam>
+        processing_frame_id: odom
+        reference_axis: [0, 0, 1]
+        angle: 1.57
+        use_inliers: true
+      </rosparam>
+    </node>
+
     <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer"
           name="region_growing_result_decomposer">
       <remap from="~input" to="normal_estimation/output_with_xyz" />
@@ -77,9 +88,9 @@
 
     <node pkg="jsk_pcl_ros" type="plane_concatenator" name="plane_concatenator" output="screen">
       <remap from="~input" to="normal_estimation/output_with_xyz" />
-      <remap from="~input/indices" to="region_growing_multiple_plane_segmentation/output/inliers" />
-      <remap from="~input/polygons" to="region_growing_multiple_plane_segmentation/output/polygons" />
-      <remap from="~input/coefficients" to="region_growing_multiple_plane_segmentation/output/coefficients" />
+      <remap from="~input/indices" to="plane_rejector/output_inliers" />
+      <remap from="~input/polygons" to="plane_rejector/output_polygons" />
+      <remap from="~input/coefficients" to="plane_rejector/output_coefficients" />
       <rosparam>
         connect_distance_threshold: 0.2
         min_area: 1.0
@@ -222,7 +233,7 @@
   </group>
   <node pkg="jsk_rviz_plugins" type="rosconsole_overlay_text.py" name="rosconsole_overlay_text">
     <rosparam>
-      nodes_regexp: ^/door_detection
+      nodes_regexp: ^/(door|valve)_detection
     </rosparam>
   </node>
 

@@ -56,6 +56,18 @@
       <rosparam>
         max_area: 5.0
         min_area: 0.05
+        cluster_tolerance: 0.5
+      </rosparam>
+    </node>
+    <node pkg="jsk_pcl_ros_utils" type="plane_rejector" name="plane_rejector">
+      <remap from="~input_polygons" to="region_growing_multiple_plane_segmentation/output/polygons" />
+      <remap from="~input_coefficients" to="region_growing_multiple_plane_segmentation/output/coefficients" />
+      <remap from="~input_inliers" to="region_growing_multiple_plane_segmentation/output/inliers" />
+      <rosparam>
+        processing_frame_id: odom
+        reference_axis: [0, 0, 1]
+        angle: 1.57
+        use_inliers: true
       </rosparam>
     </node>
     <node pkg="jsk_pcl_ros" type="cluster_point_indices_decomposer"
@@ -66,9 +78,9 @@
 
     <node pkg="jsk_pcl_ros" type="plane_concatenator" name="plane_concatenator" output="screen">
       <remap from="~input" to="normal_estimation/output_with_xyz" />
-      <remap from="~input/indices" to="region_growing_multiple_plane_segmentation/output/inliers" />
-      <remap from="~input/polygons" to="region_growing_multiple_plane_segmentation/output/polygons" />
-      <remap from="~input/coefficients" to="region_growing_multiple_plane_segmentation/output/coefficients" />
+      <remap from="~input/indices" to="plane_rejector/output_inliers" />
+      <remap from="~input/polygons" to="plane_rejector/output_polygons" />
+      <remap from="~input/coefficients" to="plane_rejector/output_coefficients" />
       <rosparam>
         connect_distance_threshold: 0.2
         min_area: 1.0
@@ -109,6 +121,9 @@
     <node pkg="jsk_pcl_ros" type="extract_top_polygon_likelihood.py" name="extract_top_polygon_likelihood">
       <remap from="~input" to="polygon_array_color_likelihood/output" />
       <remap from="~input/coefficients" to="plane_concatenator_transformed/output_coefficients" />
+      <rosparam>
+        min_likelihood: 0.5
+      </rosparam>
     </node>
     <node pkg="image_view" type="image_view" name="polygon_array_color_histogram_debug_view">
       <remap to="polygon_array_color_histogram/debug/polygon_image" from="image" />
@@ -275,9 +290,16 @@
         top: 40
       </rosparam>
     </node>
-    
+    <node pkg="jsk_rviz_plugins" type="float32_to_overlay_text.py" name="perception_info">
+      <rosparam>
+        multi_topics: [torus_finder/output/latest_time, icp_registration/output/latest_time, region_growing_multiple_plane_segmentation/output/latest_time, scan_time_info/time]
+        format: "Perception took {0} sec"
+        text_size: 24
+        top: 160
+      </rosparam>
+    </node>
   </group>
-  <node pkg="jsk_rviz_plugins" type="rosconsole_overlay_text.py" name="rosconsole_overlay_text">
+  <node pkg="jsk_rviz_plugins" type="rosconsole_overlay_text.py" name="rosconsole_overlay_text" if="false">
     <rosparam>
       nodes_regexp: ^/valve_detection
     </rosparam>

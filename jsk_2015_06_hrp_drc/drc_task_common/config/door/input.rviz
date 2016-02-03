@@ -19,7 +19,7 @@ Panels:
         - /TorusArray2
         - /OverlayImage1
       Splitter Ratio: 0.5
-    Tree Height: 359
+    Tree Height: 466
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -447,8 +447,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 6.85024
-        Min Value: -1.12777
+        Max Value: 6.64476
+        Min Value: -0.0608969
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -524,14 +524,14 @@ Visualization Manager:
     - Background Alpha: 0.8
       Background Color: 0; 0; 0
       Class: jsk_rviz_plugin/OverlayText
-      Enabled: false
+      Enabled: true
       Foreground Alpha: 0.8
       Foreground Color: 25; 255; 240
       Name: OverlayText
       Overtake Color Properties: false
       Overtake Position Properties: false
       Topic: /rosconsole_overlay_text/output
-      Value: false
+      Value: true
       font: DejaVu Sans Mono
       height: 128
       left: 0
@@ -587,20 +587,20 @@ Visualization Manager:
     Current:
       Class: rviz_animated_view_controller/Animated
       Control Mode: Orbit
-      Distance: 3.13069
+      Distance: 4.17368
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Eye:
-        X: -0.0930803
-        Y: -1.24157
-        Z: 2.89249
+        X: 4.50488
+        Y: 0.903629
+        Z: 2.99082
       Focus:
-        X: 1.74805
-        Y: 0.192
-        Z: 0.8053
+        X: 1.2272
+        Y: 0.00992793
+        Z: 0.56642
       Maintain Vertical Axis: true
       Mouse Enabled: true
       Name: Current View
@@ -631,5 +631,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1278
-  X: 3800
+  X: 2578
   Y: 24

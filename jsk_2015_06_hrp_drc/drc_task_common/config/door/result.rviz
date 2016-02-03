@@ -485,7 +485,7 @@ Visualization Manager:
       Marker Topic: /trajectory_marker
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: jsk_rviz_plugin/TorusArray
@@ -725,20 +725,20 @@ Visualization Manager:
     Current:
       Class: rviz_animated_view_controller/Animated
       Control Mode: Orbit
-      Distance: 0.83717
+      Distance: 4.55739
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Eye:
-        X: 0.432748
-        Y: -0.787576
-        Z: 1.10706
+        X: 6.04255
+        Y: 5.21974
+        Z: 3.44858
       Focus:
-        X: 0.768868
-        Y: -0.0915068
-        Z: 0.785557
+        X: 7.18374
+        Y: 2.61314
+        Z: -0.111356
       Maintain Vertical Axis: true
       Mouse Enabled: true
       Name: Current View
@@ -771,5 +771,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1278
-  X: 3826
-  Y: 732
+  X: 2575
+  Y: 712

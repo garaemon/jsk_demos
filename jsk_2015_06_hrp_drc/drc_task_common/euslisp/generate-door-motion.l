@@ -1,4 +1,5 @@
 (ros::roseus-add-msgs "jsk_footstep_msgs")
+(require "package://jsk_footstep_planner/euslisp/footplace_planner_for_manipulation.l")
 (require "package://drc_task_common/euslisp/robot-util.l")
 (require "package://drc_task_common/euslisp/util.l")
 (require "package://drc_task_common/euslisp/test-drc-door-task.l")
