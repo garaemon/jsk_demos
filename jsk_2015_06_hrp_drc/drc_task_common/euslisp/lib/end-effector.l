@@ -88,14 +88,14 @@
                                       (mapcar #'(lambda (v) (* 1.0 (/ v max-velocity)))
                                               interpolated-vel-norm))
                                fulltime (length interpolated-times))))
-        (- 1 expected-value))))
+        (- 1 (min 1.0 expected-value)))))
   )
 
 (defun merge-ee-zmp-table (ee-table zmp-table)
   (format t "ee-table:  ~A~%" (send ee-table :data-num))
   (format t "zmp-table: ~A~%" (send zmp-table :data-num))
   (when (= (send ee-table :data-num) (send zmp-table :data-num))
-    (let ((tbl (instance table :init '("time" "speed-factor" "e" "e_zmp" "e_ee"))))
+    (let ((tbl (instance table :init '("time" "speed-factor" "q" "q_zmp" "q_ee"))))
       (send ee-table :sort-by "time")
       (send zmp-table :sort-by "time")
       (dotimes (i (length (send ee-table :data)))
@@ -104,13 +104,27 @@
           (multiple-value-bind
            (ee-speed-factor ee-time ee-e) (send ee-table :get-columns-values '("speed-factor" "time" "e") ee-data)
            (multiple-value-bind
-            (zmp-speed-factor zmp-time zmp-e) (send zmp-table :get-columns-values '("speed-factor" "time" "e") zmp-data)
+            (zmp-speed-factor zmp-time zmp-e) (send zmp-table :get-columns-values '("speed-factor" "time" "q") zmp-data)
             (unless (= ee-speed-factor zmp-speed-factor)
               (error "speed-factor is not same"))
-            (send tbl :add (list ee-time ee-speed-factor (* ee-e zmp-e) zmp-e ee-e))
+            (send tbl :add (list zmp-time ee-speed-factor (* ee-e zmp-e) zmp-e ee-e))
             ))
           )
         )
+      tbl)))
+
+;; normalize zmp csv
+(defun normalize-zmp-table (orig-table)
+  (let ((tbl (instance table :init '("time" "speed-factor" "e" "q"))))
+    (let* ((all-e (send orig-table :get-column-value "e"))
+           (min-e (apply #'min all-e))
+           (max-e (apply #'max all-e)))
+      (dolist (d (send orig-table :data))
+        (multiple-value-bind
+         (time speed-factor e)
+         (send orig-table :get-columns-values '("time" "speed-factor" "e") d)
+         (send tbl :add (list time speed-factor e (normalize-value e max-e min-e)))
+         ))
       tbl)))
 
 
@@ -123,7 +137,7 @@
       (dolist (d (send orig-table :data))
         (multiple-value-bind
          (time speed-factor q e_zmp e_ee)
-         (send orig-table :get-columns-values '("time" "speed-factor" "q" "e_zmp" "e_ee") d)
+         (send orig-table :get-columns-values '("time" "speed-factor" "q" "q_zmp" "q_ee") d)
          (send tbl :add (list time speed-factor (normalize-value q max-q min-q) e_zmp e_ee))
          ))
       tbl)))
