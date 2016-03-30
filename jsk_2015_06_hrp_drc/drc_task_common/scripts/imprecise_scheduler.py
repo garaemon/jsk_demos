@@ -7,6 +7,8 @@ import time
 import numpy as np
 from scipy import signal, interpolate
 import matplotlib as mpl
+if "--no-gui" in sys.argv:
+    mpl.use("AGG")
 import matplotlib.pyplot as plt
 from drc_task_common.optimization_container import QualityTable, OptimizationContainer
 plt.ion()                       # enable interactive mode
@@ -17,6 +19,7 @@ parser.add_argument('--type', default="valve_inplace", type=str)
 parser.add_argument('--k', default=10.0, type=float)
 parser.add_argument('--p0', default=1.0, type=float)
 parser.add_argument('--no-gui', action="store_true")
+parser.add_argument('--no-wait', action="store_true")
 parser.add_argument('--m0', default=1.0, type=float)
 parser.add_argument('--e0', default=4.0, type=float)
 parser.add_argument('--p1', default=1.0, type=float)
@@ -32,10 +35,10 @@ parser.add_argument('--distance', type=float)
 args = parser.parse_args()
 deadline_time = args.time
 
-if args.type not in ["valve_inplace", "door_inplace", "valve_walk", "door_walk", "valve_walk2", "door_walk2", "sample"]:
+if args.type not in ["valve_inplace", "door_inplace", "valve_walk", "door_walk", "valve_walk2", "door_walk2", "sample", "valve_tracking", "door_tracking", "valve_tracking"]:
     raise Exception("Unknown type: %s" % (args.type))
 
-container = OptimizationContainer(args.no_gui)
+container = OptimizationContainer(args.no_gui, args.save_img)
 k = args.k                         # for step cost
 
 
@@ -126,7 +129,7 @@ elif args.type == "door_walk2":
     args.m0 = 0.2
     args.p1 = 1.0
     args.m1 = 0.5
-    print "distance_factor:", distance_factor
+    print >> sys.stderr, "distance_factor:", distance_factor
     p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/door_detection.csv", args.p0 * distance_factor)
     p1_table = QualityTable("q_{p1}", "package://drc_task_common/profile_data/recognition/door_detection.csv", 1.0)
     m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2_average_mono.csv", args.m0 * distance_factor)
@@ -150,7 +153,7 @@ elif args.type == "door_walk":
     initial_speed_factor = 5
     steps = args.distance / 0.2
     distance_factor = error_func(steps)
-    print "distance_factor:", distance_factor
+    print >> sys.stderr, "distance_factor:", distance_factor
     p0_table = QualityTable("q_{p0}", "package://drc_task_common/profile_data/recognition/door_detection.csv", args.p0 * distance_factor)
     m0_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2_average_mono.csv", args.m0 * distance_factor)
     m0_all_table = QualityTable("q_{m0}", "package://drc_task_common/profile_data/motion/jaxon_door_ik_stand2_average.csv", args.m0 * distance_factor)
@@ -161,13 +164,27 @@ elif args.type == "door_walk":
                                                                          'time'))
     container.register_quality_table(e_table, e_table.lookup_value('speed-factor', initial_speed_factor, 'time'))
 elif args.type == "sample":
-    p_table = QualityTable("q_{p}", "package://drc_task_common/profile_data/sample/p.csv", 1)
-    m_table = QualityTable("q_{m}", "package://drc_task_common/profile_data/sample/m.csv", 1)
-    e_table = QualityTable("q_{e}", "package://drc_task_common/profile_data/sample/e.csv", 1)
+    p_table = QualityTable("q_{P}", "package://drc_task_common/profile_data/sample/p.csv", 1)
+    m_table = QualityTable("q_{M}", "package://drc_task_common/profile_data/sample/m.csv", 1)
+    e_table = QualityTable("q_{E}", "package://drc_task_common/profile_data/sample/e.csv", 1)
     container.register_quality_table(p_table, 0.6)
     container.register_quality_table(m_table, 0.6)
     container.register_quality_table(e_table, 0.6)
     container.dt = 0.1
+elif args.type == "door_tracking":
+    initial_dx = 0.01
+    initial_speed_factor = 5
+    p_table = QualityTable("q_{p}", "package://drc_task_common/profile_data/recognition/tracking_sigma_epsilon.csv", 0.46)
+    e_table = QualityTable("q_{e0}", "package://drc_task_common/profile_data/execution/door/jaxon_red_door_zmp_ee_normalized.csv", 0.46)
+    container.register_quality_table(p_table, p_table.lookup_value('dx', initial_dx, 'time'))
+    container.register_quality_table(e_table, e_table.lookup_value('speed-factor', initial_speed_factor, 'time'))
+elif args.type == "valve_tracking":
+    initial_dx = 0.01
+    initial_speed_factor = 5
+    p_table = QualityTable("q_{p}", "package://drc_task_common/profile_data/recognition/tracking_sigma_epsilon.csv", 0.465)
+    e_table = QualityTable("q_{e0}", "package://drc_task_common/profile_data/execution/valve/jaxon_red_valve_zmp_ee_normalized.csv", 0.465)
+    container.register_quality_table(p_table, p_table.lookup_value('dx', initial_dx, 'time'))
+    container.register_quality_table(e_table, e_table.lookup_value('speed-factor', initial_speed_factor, 'time'))
 # global variables
 # door
 # perception_csv = "epsilon_plane_sigma.csv"
@@ -180,7 +197,7 @@ elif args.type == "sample":
 # initial_collision = 5
 # initial_traj = 12
 # initial_execution_sigma = 20.0198
-if not args.no_gui:
+if not args.no_gui or args.save_img:
     ax = plt.figure().add_subplot(111)
     ax.set_xlabel('$t$')
     ax.set_ylabel('$q$')
@@ -234,6 +251,7 @@ counter = 0
 container.draw(ax)
 if args.save_img:
     plt.savefig('image_{0:0>3}.png'.format(counter))
+    pass
 counter = counter + 1
 if args.wait:
     raw_input()
@@ -256,4 +274,5 @@ if not args.incremental:
         container.printOverview2(deadline_time)
     else:
         container.printOverview(deadline_time)
-        raw_input()
+        if not args.no_wait:
+            raw_input()

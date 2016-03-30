@@ -283,18 +283,18 @@
         :link-list (mapcar #'(lambda (l) (send *robot* :link-list (send *robot* l :end-coords :parent))) '(:rarm :rleg :lleg))
         :rotation-axis (list nil t t))
     (send avs :add (send *robot* :angle-vector))
-    (unless t;; (boundp '*zmp-table*)
-      (let ((zmp-robot (instance jaxon_red-robot :init)))
-        (let ((zmp (instance zmp-evaluator :init *zmp-robot*)))
-          (let ((zmp-table
-                 (normalize-zmp-table (send zmp :profile :debug-view t :angle-vector-sequence avs :start-angle-vector (send *robot* :reset-pose)))))
-            ;; normalize zmp-table
-            (send zmp-table :write "zmp.csv")
-            (setq *zmp-table* zmp-table)
-            ))))
+    ;; (unless (boundp '*zmp-table*)
+    ;;   (let ((zmp-robot (instance jaxon_red-robot :init)))
+    ;;     (let ((zmp (instance zmp-evaluator :init *zmp-robot*)))
+    ;;       (let ((zmp-table
+    ;;              (normalize-zmp-table (send zmp :profile :debug-view t :angle-vector-sequence avs :start-angle-vector (send *robot* :reset-pose)))))
+    ;;         ;; normalize zmp-table
+    ;;         (send zmp-table :write "zmp.csv")
+    ;;         (setq *zmp-table* zmp-table)
+    ;;         ))))
     (setq *zmp-table* (load-table "zmp.csv"))
     ;; ee-table is done
-    (unless t ;;(boundp '*ee-table*)
+    (unless (boundp '*ee-table*)
       (setq *ee-table*
             (send (instance end-effector-evaluator :init *robot* :rarm) :profile avs :save-full-log t :log-name "ee"
                   :dspeed-factor 0.1

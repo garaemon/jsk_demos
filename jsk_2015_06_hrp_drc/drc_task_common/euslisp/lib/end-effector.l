@@ -115,15 +115,15 @@
 
 ;; normalize zmp csv
 (defun normalize-zmp-table (orig-table)
-  (let ((tbl (instance table :init '("time" "speed-factor" "e" "q"))))
+  (let ((tbl (instance table :init '("time" "speed-factor" "e" "q" "max-zmp-distance" "min-zmp-distance"))))
     (let* ((all-e (send orig-table :get-column-value "e"))
            (min-e (apply #'min all-e))
            (max-e (apply #'max all-e)))
       (dolist (d (send orig-table :data))
         (multiple-value-bind
-         (time speed-factor e)
-         (send orig-table :get-columns-values '("time" "speed-factor" "e") d)
-         (send tbl :add (list time speed-factor e (normalize-value e max-e min-e)))
+         (time speed-factor e max-zmp-distance min-zmp-distance)
+         (send orig-table :get-columns-values '("time" "speed-factor" "e" "max-zmp-distance" "min-zmp-distance") d)
+         (send tbl :add (list time speed-factor e (normalize-value e max-e min-e) max-zmp-distance min-zmp-distance))
          ))
       tbl)))
 

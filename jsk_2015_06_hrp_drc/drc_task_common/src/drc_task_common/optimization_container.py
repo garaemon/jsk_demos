@@ -47,9 +47,14 @@ class QualityTable():
             self.qs_sorted, self.times_sorted, kind="linear")
     def plot(self, c):
         range = np.linspace(self.min_time(), self.max_time(), 100)
-        plt.plot(range, self.q_scale * self.time2q_interpolation(range),
-                 label='${1:.2f}{0}$'.format(self.name, self.q_scale),
-                 c=c)
+        if self.q_scale != 1.0:
+            plt.plot(range, self.q_scale * self.time2q_interpolation(range),
+                     label='${1:.2f}{0}$'.format(self.name, self.q_scale),
+                     lw=2, c=c)
+        else:
+            plt.plot(range, self.q_scale * self.time2q_interpolation(range),
+                     label='${0}$'.format(self.name),
+                     lw=2, c=c)
     def min_time(self):
         return self.times_sorted[0]
     def max_time(self):
@@ -83,10 +88,11 @@ class QualityTable():
                 return c
 
 class OptimizationContainer():
-    def __init__(self, no_gui):
+    def __init__(self, no_gui, save_img):
         self.iteration_times = 0
         self.tables = []
         self.no_gui = no_gui
+        self.save_img = save_img
         self.initial_times = []
         self.current_times = []
         self.tracking_times = []
@@ -186,7 +192,7 @@ class OptimizationContainer():
             for p in t.other_params():
                 print "    {0}: {1}".format(p, t.lookup_value("time",s, p))
     def draw(self, ax):
-        if self.no_gui:
+        if self.no_gui and not self.save_img:
             return
         ax.cla()
         ax.set_xlabel('$t$', fontsize=22)
